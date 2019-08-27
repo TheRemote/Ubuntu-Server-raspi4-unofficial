@@ -11,3 +11,5 @@ IMPORTANT: before you run apt-get upgrade you need to freeze the firmware update
 sudo apt-mark hold flash-kernel
 
 This will hold the package so it doesn't break your installation while letting you fully update everything else until official support is released.
+
+To download the prebuilt image go to the "Releases" section to get the download.
