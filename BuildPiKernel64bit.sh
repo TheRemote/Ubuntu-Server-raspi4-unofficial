@@ -1,3 +1,4 @@
+
 sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex
 
 # TOOLCHAIN
@@ -39,54 +40,138 @@ PATH=$PATH:$TOOLCHAIN/bin make armstub8-gic.bin
 # GET FIRMWARE NON-FREE
 
 cd ~
+sudo rm -rf firmware-nonfree
 git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree
-
+cd firmware-nonfree
+git pull
 
 # BUILD KERNEL
 
 cd ~
 git clone https://github.com/raspberrypi/linux.git rpi-linux
 cd rpi-linux
-git checkout origin/rpi-4.19.y # change the branch name for newer versions
-mkdir kernel-build
+git checkout origin/rpi-4.19.y
+
+sudo echo "hello"
+sudo fstrim -av
+cd ~/toolchains/aarch64
+export TOOLCHAIN=`pwd`
+
+# CONFIGURE / MAKE
+
+cd ~/rpi-linux
 PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  bcm2711_defconfig
 PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
-export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'` 
+export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 sudo make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
-
-depmod --basedir kernel-build/kernel-install "$KERNEL_VERSION"
-export KERNEL_BUILD_DIR=`realpath kernel-build` # used if you want to deploy it to Raspbian, ignore otherwise
+sudo depmod --basedir kernel-build/kernel-install "${KERNEL_VERSION}"
+export KERNEL_BUILD_DIR=`realpath ./kernel-build`
 cd ~
 
-# BUILD IMAGE
+# MOUNT IMAGE
 
-xzcat ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img.xz > ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
-sudo kpartx -av ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
+xzcat ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz > ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
+MountXZ=$(sudo kpartx -av ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
+MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
+MountXZ="${MountXZ%p1}"
+echo "Using loop $MountXZ"
 
-sudo mount /dev/mapper/loop2p2 /mnt
-sudo mount /dev/mapper/loop2p1 /mnt/boot/firmware
+sudo mount /dev/mapper/"${MountXZ}"p2 /mnt
+sudo mount /dev/mapper/"${MountXZ}"p1 /mnt/boot/firmware
 
-sudo cp rpi-linux/kernel-build/arch/arm64/boot/Image /mnt/boot/firmware/kernel8.img
-sudo cp rpi-tools/armstubs/armstub8-gic.bin /mnt/boot/firmware/armstub8-gic.bin
-sudo cp -avf rpi-linux/kernel-build/kernel-install/lib/modules/${KERNEL_VERSION} /mnt/lib/modules/
-git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree
-sudo cp -avf firmware-nonfree/* /mnt/lib/firmware
+sudo rm -rf /mnt/var/cache/apt/*
+sudo rm -rf /mnt/var/cache/man/*
+sudo rm -rf /mnt/var/log/*
+sudo rm -rf /mnt/run/*
+sudo rm -rf /mnt/boot/firmware/*
+sudo rm -rf /mnt/usr/src/*
+sudo rm -rf /mnt/lib/modules/*
 
+sudo e4defrag /mnt/*
+
+sudo cp -rvf bootfiles/* /mnt/boot/firmware
 sudo mkdir /mnt/boot/firmware/overlays
 sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/dts/broadcom/*.dtb /mnt/boot/firmware
 sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/dts/overlays/*.dtb* /mnt/boot/firmware/overlays
-sudo cp -vf rpi-linux/kernel-build/System.map /mnt/boot/firmware/
+sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/Image /mnt/boot/firmware/kernel8.img
+sudo cp -vf rpi-tools/armstubs/armstub8-gic.bin /mnt/boot/firmware/armstub8-gic.bin
 
+sudo mkdir /mnt/lib/modules/"${KERNEL_VERSION}"
+sudo cp -ravf rpi-linux/kernel-build/kernel-install/lib/modules/"${KERNEL_VERSION}" /mnt/lib/modules
+
+sudo rm -rf firmware-nonfree/.git
+sudo cp -ravf firmware-nonfree/* /mnt/lib/firmware
+
+sudo cp -vf rpi-linux/kernel-build/System.map /mnt/boot/firmware
+sudo cp -vf rpi-linux/kernel-build/Module.symvers /mnt/boot/firmware
+
+sudo e4defrag /mnt/*
 
 # QUIRKS
 
 # % Fix WiFi
+# % The Pi 4 version returns boardflags3=0x44200100
+# % The Pi 3 version returns boardflags3=0x48200100
 sudo sed -i "s:0x48200100:0x44200100:g" /mnt/lib/firmware/brcm/brcmfmac43455-sdio.txt
 
-#The Pi4 version returns boardflags3=0x44200100
-#The Pi3 version returns boardflags3=0x48200100
+# % Hold kernel packages until official support is released in the apt repository -- otherwise Ubuntu will replace our firmware with firmware that lacks Pi 4 support
+sudo sed -i "s/Package: linux-raspi2\nStatus: install ok installed/Package: linux-raspi2\nStatus: hold ok installed/g" /mnt/var/lib/dpkg/status
+sudo sed -i "s/Package: linux-image-raspi2\nStatus: install ok installed/Package: linux-image-raspi2\nStatus: hold ok installed/g" /mnt/var/lib/dpkg/status
+sudo sed -i "s/Package: linux-headers-raspi2\nStatus: install ok installed/Package: linux-headers-raspi2\nStatus: hold ok installed/g" /mnt/var/lib/dpkg/status
+
+# % Remove flash-kernel hooks to prevent firmware updater from overriding our custom firmware
+sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
+sudo rm -f /mnt/etc/kernel/postrm.d/zz-flash-kernel
+sudo rm -f /mnt/etc/initramfs/post-update.d/flash-kernel
+
+# % Create symlink to fix Bluetooth firmware bug
+sudo ln -s /mnt/lib/firmware /mnt/etc/firmware
+
+# % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
+sudo sed -i "s/ib_iser/#ib_iser/g" /mnt/lib/modules-load.d/open-iscsi.conf
+sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /mnt/lib/modules-load.d/open-iscsi.conf
+
+# % Fix update-initramfs mdadm.conf warning
+grep "ARRAY devices" /mnt/etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo -A tee -a /mnt/etc/mdadm/mdadm.conf >/dev/null;
+
+# CHROOT AND INSTALL HAVAGED - prevents low entropy from making the Pi take a long time to start up.
+
+sudo cp extras/*.deb /mnt/
+sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
+sudo mount --bind /dev /mnt/dev/
+sudo mount --bind /sys /mnt/sys/
+sudo mount --bind /proc /mnt/proc/
+sudo mount --bind /run /mnt/run/
+sudo mount --bind /dev/pts /mnt/dev/pts
+sudo rm extras/resolv.conf
+sudo cp -avf /mnt/etc/resolv.conf extras/resolv.conf
+# Give chroot a nameserver
+echo 'nameserver 8.8.4.4' | sudo tee -a /mnt/etc/resolv.conf
+
+sudo chroot /mnt /bin/bash
+dpkg -i libhavege1_1.9.1-6_arm64.deb
+dpkg -i haveged_1.9.1-6_arm64.deb
+rm -f *.deb
+exit
+
+sudo umount /mnt/etc/resolv.conf
+sudo rm -f /mnt/etc/resolv.conf
+sudo cp extras/resolv.conf /mnt/etc/resolv.conf
+
+sudo umount /mnt/sys/
+sudo umount /mnt/proc/
+sudo umount /mnt/run/
+sudo umount /mnt/dev/pts
+sudo umount /mnt/dev/
+
+sudo rm -rf /mnt/var/cache/apt/*
+sudo rm -rf /mnt/var/cache/man/*
+sudo rm -rf /mnt/var/log/*
+sudo rm -rf /mnt/run/*
+
+# UNMOUNT AND SAVE CHANGES TO IMAGE
 
 sudo umount /mnt/boot/firmware
 sudo umount /mnt
 sudo kpartx -dv ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
-sudo losetup -d /dev/loop2
+sudo losetup -d /dev/$MountXZ
