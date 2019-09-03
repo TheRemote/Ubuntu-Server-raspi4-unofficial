@@ -158,6 +158,10 @@ sudo cp extras/*.deb /mnt/
 sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
 
 # % Install new kernel modules
+
+cat /run/systemd/resolve/stub-resolv.conf | sudo -A tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
+sudo touch /mnt/etc/modules-load.d/cups-filters.conf
+
 sudo chroot /mnt /bin/bash
 Version=$(ls /lib/modules | xargs)
 echo "Kernel modules version: $Version"
@@ -166,6 +170,9 @@ depmod -a "$Version"
 # % Update initramfs
 apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
 update-initramfs -u
+
+# % Add updated mesa repository for video driver support
+add-apt-repository ppa:ubuntu-x-swat/updates -y
 
 # % INSTALL HAVAGED - prevents low entropy from making the Pi take a long time to start up.
 dpkg -i libhavege1_1.9.1-6_arm64.deb
