@@ -2,7 +2,7 @@ This is an initial testing pre-release of a unofficial build of Ubuntu Server 18
 <br>
 I have included both the script to create it yourself from the official images as a base as well as a precompiled image that you can download and simply write straight to your SD card.  The included script makes the process of modifying the current official release to work on the Raspberry Pi 4 much easier.<br>
 <br>
-For more information visit https://jamesachambers.com/raspberry-pi-ubuntu-server-18-04-2-installation-guide/ including lots of comments and discussion.<br>
+For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/ or including a walkthrough and lots of comments / discussion.<br>
 <br>
 All 4 GB of RAM are available in this preinstalled image.  WiFi, Bluetooth, and other drivers have been updated for the Raspberry Pi 4.<br>
 <br>
