@@ -10,6 +10,14 @@ This will hold the package so it doesn't break your installation while letting y
 <br>
 To download the prebuilt image go to the "Releases" section to get the download.<br>
 <br>
+September 3rd 2019 - v5 Desktop Pre-Release Test<br>
+-Desktop support added<br>
+-Expect lots of warnings in the logs.  If you find solutions to them please leave a comment -- many commits come from the comments!<br>
+-Be advised -- installing can take quite a while on a Pi -- overnight or when you have something to do is a good time<br>
+-Type one the following commands to install your preferred flavor of Ubuntu Desktop:<br>
+sudo apt-get install xubuntu-desktop # or<br>
+sudo apt-get install kubuntu-desktop<br>
+<br>
 September 2nd 2019 - v4 Pre-Release Test<br>
 -Recompiled kernel to include support for Ubuntu features that are not present in Raspbian<br>
 -Enabled USB UAS support<br>
