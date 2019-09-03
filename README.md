@@ -10,6 +10,15 @@ This will hold the package so it doesn't break your installation while letting y
 <br>
 To download the prebuilt image go to the "Releases" section to get the download.<br>
 <br>
+September 2nd 2019 - v4 Pre-Release Test<br>
+-Recompiled kernel to include support for Ubuntu features that are not present in Raspbian<br>
+-Enabled USB UAS support<br>
+-Fixed video driver by modifying config.txt and compiling with 3D support<br>
+-System now boots clean and loads all modules (sudo systemd status)<br>
+<br>
+September 2nd 2019 - v3 Pre-Release Test<br>
+-Fixed IPV6 and several other modules not loading<br>
+<br>
 August 31st 2019 - v2 Pre-Release Test<br>
 -Boot time reduced from 100s to around 30s<br>
 -Messing with apt-mark or flash-kernel is no longer necessary and the fix has been built into the image<br>
