@@ -19,11 +19,11 @@ make -j4
 make install
 
 cd "$TOOLCHAIN"
-wget https://ftp.gnu.org/gnu/gcc/gcc-9.1.0/gcc-9.1.0.tar.gz
-tar -xf gcc-9.1.0.tar.gz
-mkdir gcc-9.1.0-build
-cd gcc-9.1.0-build
-../gcc-9.1.0/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --with-newlib --without-headers --disable-nls --disable-shared --disable-threads --disable-libssp --disable-decimal-float --disable-libquadmath --disable-libvtv --disable-libgomp --disable-libatomic --enable-languages=c
+wget https://ftp.gnu.org/gnu/gcc/gcc-9.2.0/gcc-9.2.0.tar.gz
+tar -xf gcc-9.2.0.tar.gz
+mkdir gcc-9.2.0-build
+cd gcc-9.2.0-build
+../gcc-9.2.0/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --with-newlib --without-headers --disable-nls --disable-shared --disable-threads --disable-libssp --disable-decimal-float --disable-libquadmath --disable-libvtv --disable-libgomp --disable-libatomic --enable-languages=c
 make all-gcc -j4
 make install-gcc
 
@@ -47,18 +47,21 @@ git pull
 
 # BUILD KERNEL
 
+# % Check out the 4.19.y kernel branch -- if building and future versions are available you can update which branch is checked out here
 cd ~
 git clone https://github.com/raspberrypi/linux.git rpi-linux --single-branch --branch rpi-4.19.y
 cd rpi-linux
 git checkout origin/rpi-4.19.y
 
+# % Simple check to make sure we are sudod, gives a chance to catch and Ctrl+C or enter sudo password before continuing
 sudo echo "hello"
 sudo fstrim -av
 cd ~/toolchains/aarch64
 export TOOLCHAIN=`pwd`
 cd ~
 
-cd rpi-linux
+# % This is just a convenience stub to let you export the KERNEL_VERSION quickly if you have already built the kernel and are manually running later steps, otherwise it does nothing
+cd ~/rpi-linux
 export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 cd ~
 
@@ -67,11 +70,19 @@ cd ~
 cd ~/rpi-linux
 PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  bcm2711_defconfig
 cd kernel-build
+# % Get conform_config.sh from sakaki-'s prebuilt 64 bit Raspberry Pi kernel modifications - https://github.com/sakaki-/bcm2711-kernel-bis
+rm -f conform_config.sh
+wget https://raw.githubusercontent.com/sakaki-/bcm2711-kernel-bis/master/conform_config.sh
+chmod +x conform_config.sh
 ./conform_config.sh
+rm conform_config.sh
 cd ~/rpi-linux
+# % If you want to change options, use the line below to enter the menuconfig kernel utility and configure your own kernel config flags
 #PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  menuconfig
+# % The line below starts the kernel build
 PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
 export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
+# Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
 make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
 depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
 export KERNEL_BUILD_DIR=`realpath ./kernel-build`
@@ -85,10 +96,12 @@ MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
 MountXZ="${MountXZ%p1}"
 echo "Using loop $MountXZ"
 
+# % Mount the image on /mnt (rootfs) and /mnt/boot/firmware (bootfs)
 sudo mount /dev/mapper/"${MountXZ}"p2 /mnt
 sudo rm -rf /mnt/boot/firmware/*
 sudo mount /dev/mapper/"${MountXZ}"p1 /mnt/boot/firmware
 
+# % Clean out old firmware, kernel and modules that don't support RPI 4
 sudo rm -rf /mnt/boot/firmware/*
 sudo rm -rf /mnt/usr/src/*
 sudo rm -rf /mnt/lib/modules/*
@@ -98,36 +111,45 @@ sudo rm -rf /mnt/boot/config*
 sudo rm -rf /mnt/boot/vmlinuz*
 sudo rm -rf /mnt/boot/System.map*
 
+# % After we've cleaned some files off the image run a e4defrag to optimize disk img
 sudo e4defrag /mnt/*
 
+# % Copy bootfiles folder -- to create the bootfiles folder just copy the files from /boot from the precompiled image right into bootfiles -- they are mostly static
 sudo cp -rvf bootfiles/* /mnt/boot/firmware
+
+# % Copy newly compiled kernel, stubs, overlays, etc to Ubuntu image
 sudo mkdir /mnt/boot/firmware/overlays
 sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/dts/broadcom/*.dtb /mnt/boot/firmware
 sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/dts/overlays/*.dtb* /mnt/boot/firmware/overlays
 sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/Image /mnt/boot/firmware/kernel8.img
 sudo cp -vf rpi-tools/armstubs/armstub8-gic.bin /mnt/boot/firmware/armstub8-gic.bin
-
 sudo cp -vf rpi-linux/kernel-build/vmlinux /mnt/boot/vmlinuz-"${KERNEL_VERSION}"
 sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/Image /mnt/boot/initrd.img-"${KERNEL_VERSION}"
 sudo cp -vf rpi-linux/kernel-build/System.map /mnt/boot/System.map-"${KERNEL_VERSION}"
 sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/config-"${KERNEL_VERSION}"
+# % Create symlinks to our custom kernel -- this allows initramfs to find our kernel and update modules successfully
 sudo ln -s /mnt/boot/vmlinuz-"${KERNEL_VERSION}" /mnt/boot/vmlinuz
 sudo ln -s /mnt/boot/initrd.img-"${KERNEL_VERSION}" /mnt/boot/initrd.img
 
+# % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
 sudo rm /mnt/var/lib/initramfs-tools/*
 sha1sum=$(sha1sum  /mnt/boot/initrd.img-${KERNEL_VERSION})
 echo "$sha1sum  /boot/vmlinuz-${KERNEL_VERSION}" | sudo -A tee -a /mnt/var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
 
+# % Copy the new kernel modules to the Ubuntu image
 sudo mkdir /mnt/lib/modules/${KERNEL_VERSION}
 sudo cp -rvf rpi-linux/kernel-build/kernel-install/* /mnt
 
+# % Copy latest firmware to Ubuntu image
 sudo rm -rf firmware-nonfree/.git
 sudo cp -ravf firmware-nonfree/* /mnt/lib/firmware
 
+# % Copy System.map, kernel .config and Module.symvers to Ubuntu image
 sudo cp -vf rpi-linux/kernel-build/System.map /mnt/boot/firmware
 sudo cp -vf rpi-linux/kernel-build/Module.symvers /mnt/boot/firmware
 sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/firmware/config
 
+# % Perform one more defrag after installing our new modules and firmware
 sudo e4defrag /mnt/*
 
 # QUIRKS
@@ -162,7 +184,10 @@ sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
 cat /run/systemd/resolve/stub-resolv.conf | sudo -A tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
 sudo touch /mnt/etc/modules-load.d/cups-filters.conf
 
+# % Enter Ubuntu image chroot
 sudo chroot /mnt /bin/bash
+
+# % Run depmod from the chroot to make sure all new kernel modules get picked up
 Version=$(ls /lib/modules | xargs)
 echo "Kernel modules version: $Version"
 depmod -a "$Version"
