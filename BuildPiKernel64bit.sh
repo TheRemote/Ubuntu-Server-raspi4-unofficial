@@ -80,7 +80,7 @@ cd ~/rpi-linux
 # % If you want to change options, use the line below to enter the menuconfig kernel utility and configure your own kernel config flags
 #PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  menuconfig
 # % The line below starts the kernel build
-PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
+PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu-
 export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 # Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
 make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
@@ -181,11 +181,15 @@ sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
 
 # % Install new kernel modules
 
+sudo mkdir -p /mnt/run/systemd/resolve
 cat /run/systemd/resolve/stub-resolv.conf | sudo -A tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
 sudo touch /mnt/etc/modules-load.d/cups-filters.conf
 
 # % Enter Ubuntu image chroot
 sudo chroot /mnt /bin/bash
+
+# % Add updated mesa repository for video driver support
+add-apt-repository ppa:ubuntu-x-swat/updates -y
 
 # % Run depmod from the chroot to make sure all new kernel modules get picked up
 Version=$(ls /lib/modules | xargs)
@@ -195,10 +199,6 @@ depmod -a "$Version"
 # % Update initramfs
 apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
 update-initramfs -u
-
-# % Add updated mesa repository for video driver support
-add-apt-repository ppa:ubuntu-x-swat/updates -y
-
 # % INSTALL HAVAGED - prevents low entropy from making the Pi take a long time to start up.
 dpkg -i libhavege1_1.9.1-6_arm64.deb
 dpkg -i haveged_1.9.1-6_arm64.deb
@@ -206,6 +206,9 @@ rm -f *.deb
 
 # % Remove ureadahead, does not support arm and makes our bootup unclean when checking systemd status
 apt remove ureadahead libnih1 -y
+
+apt update && apt dist-upgrade -y
+apt autoremove -y && apt clean && apt autoclean
 
 # % Finished, exit
 exit

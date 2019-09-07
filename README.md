@@ -10,6 +10,14 @@ This will hold the package so it doesn't break your installation while letting y
 <br>
 To download the prebuilt image go to the "Releases" section to get the download.<br>
 <br>
+September 7th 2019 - v6 Desktop Pre-Release<br>
+-Updated kernel to rpi-4.19.71<br>
+-Integrated all available updates from apt into the base image<br>
+-Fixed display driver issue -- if you are running v5 you can fix it by commenting out dtoverlay=vc4-fkms-v3d from /boot/config.txt<br>
+-Enabled Ceph support in the kernel .config<br>
+-Added build flags to kernel build line to build a more complete device tree (dtbo files)<br>
+-Integrated all upstream updates since v5 from raspberrypi-linux and firmware-nonfree including a 3d driver fix for aarch64<br>
+<br>
 September 3rd 2019 - v5 Desktop Pre-Release Test<br>
 -Desktop support added<br>
 -Expect lots of warnings in the logs.  If you find solutions to them please leave a comment -- many commits come from the comments!<br>
