@@ -138,7 +138,7 @@ echo "$sha1sum  /boot/vmlinuz-${KERNEL_VERSION}" | sudo -A tee -a /mnt/var/lib/i
 
 # % Copy the new kernel modules to the Ubuntu image
 sudo mkdir /mnt/lib/modules/${KERNEL_VERSION}
-sudo cp -rvf rpi-linux/kernel-build/kernel-install/* /mnt
+sudo cp -ravf rpi-linux/kernel-build/kernel-install/* /mnt
 
 # % Copy latest firmware to Ubuntu image
 sudo rm -rf firmware-nonfree/.git
@@ -188,17 +188,21 @@ sudo touch /mnt/etc/modules-load.d/cups-filters.conf
 # % Enter Ubuntu image chroot
 sudo chroot /mnt /bin/bash
 
-# % Add updated mesa repository for video driver support
-add-apt-repository ppa:ubuntu-x-swat/updates -y
-
 # % Run depmod from the chroot to make sure all new kernel modules get picked up
 Version=$(ls /lib/modules | xargs)
 echo "Kernel modules version: $Version"
 depmod -a "$Version"
 
+# % Add updated mesa repository for video driver support
+add-apt-repository ppa:ubuntu-x-swat/updates -y
+
+# % Update all software to current from Ubuntu apt repositories
+apt update && apt dist-upgrade -y
+
 # % Update initramfs
 apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
 update-initramfs -u
+
 # % INSTALL HAVAGED - prevents low entropy from making the Pi take a long time to start up.
 dpkg -i libhavege1_1.9.1-6_arm64.deb
 dpkg -i haveged_1.9.1-6_arm64.deb
@@ -207,7 +211,7 @@ rm -f *.deb
 # % Remove ureadahead, does not support arm and makes our bootup unclean when checking systemd status
 apt remove ureadahead libnih1 -y
 
-apt update && apt dist-upgrade -y
+# % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
 
 # % Finished, exit
