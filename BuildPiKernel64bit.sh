@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 
 sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex
 
