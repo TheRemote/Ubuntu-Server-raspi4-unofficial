@@ -10,6 +10,16 @@ This will hold the package so it doesn't break your installation while letting y
 <br>
 To download the prebuilt image go to the "Releases" section to get the download.<br>
 <br>
+September 19th 2019 - v8 Desktop Pre-Release<br>
+-Updated kernel to rpi-4.19.73<br>
+-Added hosts entry to prevent slow sudo command<br>
+-Added CONFIG_CGROUP_PIDS=y to .config file<br>
+-Committed extras folder to repository<br>
+<br>
+September 8th 2019 - v7 Desktop Pre-Release<br>
+-Updated kernel to rpi-4.19.71<br>
+-Added CONFIG_BLK_DEV_RBD=y to kernel .config file to enable Ceph support
+<br>
 September 7th 2019 - v6 Desktop Pre-Release<br>
 -Updated kernel to rpi-4.19.71<br>
 -Integrated all available updates from apt into the base image<br>

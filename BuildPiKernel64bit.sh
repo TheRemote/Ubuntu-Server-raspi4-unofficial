@@ -42,7 +42,7 @@ PATH=$PATH:$TOOLCHAIN/bin make armstub8-gic.bin
 
 cd ~
 sudo rm -rf firmware-nonfree
-git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree
+git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree --depth 1
 cd firmware-nonfree
 git pull
 
@@ -50,7 +50,7 @@ git pull
 
 # % Check out the 4.19.y kernel branch -- if building and future versions are available you can update which branch is checked out here
 cd ~
-git clone https://github.com/raspberrypi/linux.git rpi-linux --single-branch --branch rpi-4.19.y
+git clone https://github.com/raspberrypi/linux.git rpi-linux --single-branch --branch rpi-4.19.y --depth 1
 cd rpi-linux
 git checkout origin/rpi-4.19.y
 
@@ -161,7 +161,6 @@ sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
 sudo rm -f /mnt/etc/kernel/postrm.d/zz-flash-kernel
 sudo rm -f /mnt/etc/initramfs/post-update.d/flash-kernel
 
-
 # % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
 sudo sed -i "s/ib_iser/#ib_iser/g" /mnt/lib/modules-load.d/open-iscsi.conf
 sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /mnt/lib/modules-load.d/open-iscsi.conf
@@ -170,12 +169,17 @@ sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /mnt/lib/modules-load.d/open-iscsi.conf
 grep "ARRAY devices" /mnt/etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo -A tee -a /mnt/etc/mdadm/mdadm.conf >/dev/null;
 
 # CHROOT
-
+# % Copy necessary packages
 sudo cp extras/*.deb /mnt/
+
+# % Copy hosts file to prevent slow sudo commands
+sudo rm -f /mnt/etc/hosts
+sudo cp extras/hosts /mnt/etc/hosts
+
+# % Copy QEMU bin file so we can chroot into arm64 from x86_64
 sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
 
 # % Install new kernel modules
-
 sudo mkdir -p /mnt/run/systemd/resolve
 cat /run/systemd/resolve/stub-resolv.conf | sudo -A tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
 sudo touch /mnt/etc/modules-load.d/cups-filters.conf
@@ -194,11 +198,13 @@ depmod -a "$Version"
 # % Add updated mesa repository for video driver support
 add-apt-repository ppa:ubuntu-x-swat/updates -y
 
+# % Hold Ubuntu packages that will break booting from the Pi 4
+apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
+
 # % Update all software to current from Ubuntu apt repositories
 apt update && apt dist-upgrade -y
 
 # % Update initramfs
-apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
 update-initramfs -u
 
 # % INSTALL HAVAGED - prevents low entropy from making the Pi take a long time to start up.
