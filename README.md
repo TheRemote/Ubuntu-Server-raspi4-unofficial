@@ -15,6 +15,8 @@ September 19th 2019 - v8 Desktop Pre-Release<br>
 -Added hosts entry to prevent slow sudo command<br>
 -Added CONFIG_CGROUP_PIDS=y to .config file<br>
 -Committed extras folder to repository<br>
+-Added forcefsck file to run fsck on first boot<br>
+-Reduced image size substantially by running fstrim on .img<br>
 <br>
 September 8th 2019 - v7 Desktop Pre-Release<br>
 -Updated kernel to rpi-4.19.71<br>

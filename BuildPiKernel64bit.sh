@@ -56,7 +56,6 @@ git checkout origin/rpi-4.19.y
 
 # % Simple check to make sure we are sudod, gives a chance to catch and Ctrl+C or enter sudo password before continuing
 sudo echo "hello"
-sudo fstrim -av
 cd ~/toolchains/aarch64
 export TOOLCHAIN=`pwd`
 cd ~
@@ -98,8 +97,11 @@ sudo mount /dev/mapper/"${MountXZ}"p2 /mnt
 sudo rm -rf /mnt/boot/firmware/*
 sudo mount /dev/mapper/"${MountXZ}"p1 /mnt/boot/firmware
 
+sudo fstrim -av
+
 # % Clean out old firmware, kernel and modules that don't support RPI 4
 sudo rm -rf /mnt/boot/firmware/*
+sudo rm -rf /mnt/lib/firmware/*
 sudo rm -rf /mnt/usr/src/*
 sudo rm -rf /mnt/lib/modules/*
 
@@ -109,6 +111,7 @@ sudo rm -rf /mnt/boot/vmlinuz*
 sudo rm -rf /mnt/boot/System.map*
 
 # % After we've cleaned some files off the image run a e4defrag to optimize disk img
+sudo fstrim -av
 sudo e4defrag /mnt/*
 
 # % Copy bootfiles folder -- to create the bootfiles folder just copy the files from /boot from the precompiled image right into bootfiles -- they are mostly static
@@ -138,7 +141,7 @@ sudo mkdir /mnt/lib/modules/${KERNEL_VERSION}
 sudo cp -ravf rpi-linux/kernel-build/kernel-install/* /mnt
 
 # % Copy latest firmware to Ubuntu image
-sudo rm -rf firmware-nonfree/.git
+sudo rm -rf firmware-nonfree/.git*
 sudo cp -ravf firmware-nonfree/* /mnt/lib/firmware
 
 # % Copy System.map, kernel .config and Module.symvers to Ubuntu image
@@ -147,6 +150,7 @@ sudo cp -vf rpi-linux/kernel-build/Module.symvers /mnt/boot/firmware
 sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/firmware/config
 
 # % Perform one more defrag after installing our new modules and firmware
+sudo fstrim -av
 sudo e4defrag /mnt/*
 
 # QUIRKS
@@ -201,6 +205,9 @@ add-apt-repository ppa:ubuntu-x-swat/updates -y
 # % Hold Ubuntu packages that will break booting from the Pi 4
 apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
 
+# % Remove linux-firmware-raspi2
+apt remove linux-firmware-raspi2 -y --allow-change-held-packages
+
 # % Update all software to current from Ubuntu apt repositories
 apt update && apt dist-upgrade -y
 
@@ -217,6 +224,9 @@ apt remove ureadahead libnih1 -y
 
 # % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
+
+# % Force fsck on next reboot
+touch /forcefsck
 
 # % Finished, exit
 exit
