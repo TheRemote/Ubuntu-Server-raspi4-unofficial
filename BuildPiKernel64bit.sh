@@ -71,12 +71,8 @@ cd ~
 cd ~/rpi-linux
 PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  bcm2711_defconfig
 cd kernel-build
-# % Get conform_config.sh from sakaki-'s prebuilt 64 bit Raspberry Pi kernel modifications - https://github.com/sakaki-/bcm2711-kernel-bis
-rm -f conform_config.sh
-wget https://raw.githubusercontent.com/sakaki-/bcm2711-kernel-bis/master/conform_config.sh
-chmod +x conform_config.sh
-./conform_config.sh
-rm conform_config.sh
+rm .config
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
 cd ~/rpi-linux
 # % If you want to change options, use the line below to enter the menuconfig kernel utility and configure your own kernel config flags
 #PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  menuconfig
@@ -165,8 +161,6 @@ sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
 sudo rm -f /mnt/etc/kernel/postrm.d/zz-flash-kernel
 sudo rm -f /mnt/etc/initramfs/post-update.d/flash-kernel
 
-# % Create symlink to fix Bluetooth firmware bug
-sudo ln -s /mnt/lib/firmware /mnt/etc/firmware
 
 # % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
 sudo sed -i "s/ib_iser/#ib_iser/g" /mnt/lib/modules-load.d/open-iscsi.conf
@@ -188,6 +182,9 @@ sudo touch /mnt/etc/modules-load.d/cups-filters.conf
 
 # % Enter Ubuntu image chroot
 sudo chroot /mnt /bin/bash
+
+# % Create symlink to fix Bluetooth firmware bug
+ln -s /lib/firmware /etc/firmware
 
 # % Run depmod from the chroot to make sure all new kernel modules get picked up
 Version=$(ls /lib/modules | xargs)
