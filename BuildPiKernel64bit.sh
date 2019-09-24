@@ -124,7 +124,6 @@ sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/dts/overlays/*.dtb* /mnt/boot
 sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/Image /mnt/boot/firmware/kernel8.img
 sudo cp -vf rpi-tools/armstubs/armstub8-gic.bin /mnt/boot/firmware/armstub8-gic.bin
 sudo cp -vf rpi-linux/kernel-build/vmlinux /mnt/boot/vmlinuz-"${KERNEL_VERSION}"
-sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/Image /mnt/boot/initrd.img-"${KERNEL_VERSION}"
 sudo cp -vf rpi-linux/kernel-build/System.map /mnt/boot/System.map-"${KERNEL_VERSION}"
 sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/config-"${KERNEL_VERSION}"
 # % Create symlinks to our custom kernel -- this allows initramfs to find our kernel and update modules successfully
@@ -189,7 +188,7 @@ cat /run/systemd/resolve/stub-resolv.conf | sudo -A tee /mnt/run/systemd/resolve
 sudo touch /mnt/etc/modules-load.d/cups-filters.conf
 
 # % Enter Ubuntu image chroot
-sudo chroot /mnt /bin/bash
+sudo chroot /mnt /bin/bash <<EOF
 
 # % Create symlink to fix Bluetooth firmware bug
 ln -s /lib/firmware /etc/firmware
@@ -229,7 +228,7 @@ apt autoremove -y && apt clean && apt autoclean
 touch /forcefsck
 
 # % Finished, exit
-exit
+EOF
 
 # UNMOUNT AND SAVE CHANGES TO IMAGE
 
