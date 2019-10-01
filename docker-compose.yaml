@@ -1,0 +1,25 @@
+---
+services:
+  build-kernel-raspi4-64bit:
+    build:
+      args:
+        binutils_version: 2.32
+        gcc_version: 9.2.0
+        make_jobs: 4
+        toolchain: /toolchains/aarch64
+      context: docker
+      dockerfile: ../Dockerfile
+    command:
+      - ./build-kernel-raspi4-64bit.sh
+      - /build
+    image: ubuntu-toolchain-aarch64
+    # A privileged container is required or otherwise `kpartx` will not work!
+    privileged: true
+    # Mitigate the security risk of a privileged container by deescalating to a non-root user.
+    # The container will `sudo` where required.
+    user: docker
+    volumes:
+    - build:/build
+version: '3.7'
+volumes:
+  build: {}
