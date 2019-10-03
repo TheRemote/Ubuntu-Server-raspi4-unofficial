@@ -1,0 +1,19 @@
+# have a properly sized image
+disable_overscan=1
+
+# for sound over HDMI
+hdmi_drive=2
+
+# Enable audio (loads snd_bcm2835)
+dtparam=audio=on
+
+# armstub8-gic stub for Pi4s with older firmware
+armstub=armstub8-gic.bin
+enable_gic=1
+
+[pi4]
+#dtoverlay=vc4-fkms-v3d
+max_framebuffers=2
+arm_64bit=1
+
+[all]

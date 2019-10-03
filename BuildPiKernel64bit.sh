@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
-sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex
+# INSTALL DEPENDENCIES
+
+sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx -y
+sudo apt-get install qemu-user-static -y
 
 # TOOLCHAIN
 
 cd ~
 mkdir -p toolchains/aarch64
 cd toolchains/aarch64
-
 export TOOLCHAIN=`pwd`
 
 cd "$TOOLCHAIN"
@@ -46,6 +48,13 @@ git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree --dept
 cd firmware-nonfree
 git pull
 
+# GET FIRMWARE
+cd ~
+sudo rm -rf firmware
+git clone https://github.com/raspberrypi/firmware firmware --depth 1
+cd firmware
+git pull
+
 # BUILD KERNEL
 
 # % Check out the 4.19.y kernel branch -- if building and future versions are available you can update which branch is checked out here
@@ -54,31 +63,32 @@ git clone https://github.com/raspberrypi/linux.git rpi-linux --single-branch --b
 cd rpi-linux
 git checkout origin/rpi-4.19.y
 
-# % Simple check to make sure we are sudod, gives a chance to catch and Ctrl+C or enter sudo password before continuing
-sudo echo "hello"
-cd ~/toolchains/aarch64
-export TOOLCHAIN=`pwd`
-cd ~
-
-# % This is just a convenience stub to let you export the KERNEL_VERSION quickly if you have already built the kernel and are manually running later steps, otherwise it does nothing
-cd ~/rpi-linux
-export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
-cd ~
-
 # CONFIGURE / MAKE
 
 cd ~/rpi-linux
 PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  bcm2711_defconfig
 cd kernel-build
+
+# % If you want to build yourself from scratch (without using the .config from the repository) uncomment the lines below
+#wget https://raw.githubusercontent.com/sakaki-/bcmrpi3-kernel-bis/master/conform_config.sh
+#chmod +x conform_config.sh
+#./conform_config.sh
+#wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/conform_config_jamesachambers.sh
+#chmod +x conform_config_jamesachambers.sh
+#./conform_config_jamesachambers.sh
+
+# % This pulls the latest config from the repository -- if building yourself/customizing comment out
 rm .config
 wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
 cd ~/rpi-linux
+
 # % If you want to change options, use the line below to enter the menuconfig kernel utility and configure your own kernel config flags
 #PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  menuconfig
+
 # % The line below starts the kernel build
 PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu-
 export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
-# Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
+# % Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
 make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
 depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
 export KERNEL_BUILD_DIR=`realpath ./kernel-build`
@@ -114,7 +124,7 @@ sudo rm -rf /mnt/boot/System.map*
 sudo fstrim -av
 sudo e4defrag /mnt/*
 
-# % Copy bootfiles folder -- to create the bootfiles folder just copy the files from /boot from the precompiled image right into bootfiles -- they are mostly static
+# % Copy bootfiles folder
 sudo cp -rvf bootfiles/* /mnt/boot/firmware
 
 # % Copy newly compiled kernel, stubs, overlays, etc to Ubuntu image
@@ -129,6 +139,9 @@ sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/config-"${KERNEL_VERSION}"
 # % Create symlinks to our custom kernel -- this allows initramfs to find our kernel and update modules successfully
 sudo ln -s /mnt/boot/vmlinuz-"${KERNEL_VERSION}" /mnt/boot/vmlinuz
 sudo ln -s /mnt/boot/initrd.img-"${KERNEL_VERSION}" /mnt/boot/initrd.img
+# % Copy gpu firmware via start*.elf and fixup*.dat files
+sudo cp -vf firmware/boot/start*.elf /mnt/boot/firmware
+sudo cp -vf firmware/boot/fixup*.dat /mnt/boot/firmware
 
 # % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
 sudo rm /mnt/var/lib/initramfs-tools/*
@@ -150,7 +163,6 @@ sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/firmware/config
 
 # % Perform one more defrag after installing our new modules and firmware
 sudo fstrim -av
-sudo e4defrag /mnt/*
 
 # QUIRKS
 
@@ -190,10 +202,12 @@ sudo touch /mnt/etc/modules-load.d/cups-filters.conf
 # % Enter Ubuntu image chroot
 sudo chroot /mnt /bin/bash <<EOF
 
-# % Create symlink to fix Bluetooth firmware bug
+# % Fix /lib/firmware permission and symlink
+chown -R root /lib
 ln -s /lib/firmware /etc/firmware
 
 # % Run depmod from the chroot to make sure all new kernel modules get picked up
+
 Version=$(ls /lib/modules | xargs)
 echo "Kernel modules version: $Version"
 depmod -a "$Version"
@@ -229,6 +243,9 @@ touch /forcefsck
 
 # % Finished, exit
 EOF
+
+sudo fstrim -av
+sudo e4defrag /mnt/*
 
 # UNMOUNT AND SAVE CHANGES TO IMAGE
 
