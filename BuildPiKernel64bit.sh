@@ -11,6 +11,7 @@ cd ~
 mkdir -p toolchains/aarch64
 cd toolchains/aarch64
 export TOOLCHAIN=`pwd`
+cd ~
 
 cd "$TOOLCHAIN"
 wget https://ftp.gnu.org/gnu/binutils/binutils-2.32.tar.bz2
@@ -47,6 +48,9 @@ sudo rm -rf firmware-nonfree
 git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree --depth 1
 cd firmware-nonfree
 git pull
+# % Get Bluetooth firmware
+cd brcm
+wget https://github.com/RPi-Distro/bluez-firmware/raw/master/broadcom/BCM4345C0.hcd
 
 # GET FIRMWARE
 cd ~
