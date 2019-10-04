@@ -137,8 +137,11 @@ sudo cp -vf rpi-linux/kernel-build/vmlinux /mnt/boot/vmlinuz-"${KERNEL_VERSION}"
 sudo cp -vf rpi-linux/kernel-build/System.map /mnt/boot/System.map-"${KERNEL_VERSION}"
 sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/config-"${KERNEL_VERSION}"
 # % Create symlinks to our custom kernel -- this allows initramfs to find our kernel and update modules successfully
-sudo ln -s /mnt/boot/vmlinuz-"${KERNEL_VERSION}" /mnt/boot/vmlinuz
-sudo ln -s /mnt/boot/initrd.img-"${KERNEL_VERSION}" /mnt/boot/initrd.img
+(
+  cd /mnt/boot
+  sudo ln -s vmlinuz-"${KERNEL_VERSION}" vmlinuz
+  sudo ln -s initrd.img-"${KERNEL_VERSION}" initrd.img
+)
 # % Copy gpu firmware via start*.elf and fixup*.dat files
 sudo cp -vf firmware/boot/start*.elf /mnt/boot/firmware
 sudo cp -vf firmware/boot/fixup*.dat /mnt/boot/firmware
