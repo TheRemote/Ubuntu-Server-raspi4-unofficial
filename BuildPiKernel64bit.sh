@@ -51,6 +51,10 @@ git pull
 # % Get Bluetooth firmware
 cd brcm
 wget https://github.com/RPi-Distro/bluez-firmware/raw/master/broadcom/BCM4345C0.hcd
+sudo rm -f brcmfmac43455-sdio.bin
+sudo rm -f brcmfmac43455-sdio.clm_blob
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware/brcm/brcmfmac43455-sdio.bin
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware/brcm/brcmfmac43455-sdio.clm_blob
 
 # GET FIRMWARE
 cd ~
