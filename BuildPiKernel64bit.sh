@@ -111,7 +111,6 @@ sudo fstrim -av
 
 # % Clean out old firmware, kernel and modules that don't support RPI 4
 sudo rm -rf /mnt/boot/firmware/*
-sudo rm -rf /mnt/lib/firmware/*
 sudo rm -rf /mnt/usr/src/*
 sudo rm -rf /mnt/lib/modules/*
 
@@ -203,11 +202,10 @@ cat /run/systemd/resolve/stub-resolv.conf | sudo -A tee /mnt/run/systemd/resolve
 sudo touch /mnt/etc/modules-load.d/cups-filters.conf
 
 # % Enter Ubuntu image chroot
-sudo chroot /mnt /bin/bash <<EOF
+sudo chroot /mnt /bin/bash
 
 # % Fix /lib/firmware permission and symlink
 chown -R root /lib
-ln -s /lib/firmware /etc/firmware
 
 # % Run depmod from the chroot to make sure all new kernel modules get picked up
 
@@ -222,7 +220,7 @@ add-apt-repository ppa:ubuntu-x-swat/updates -y
 apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
 
 # % Remove linux-firmware-raspi2
-apt remove linux-firmware-raspi2 -y --allow-change-held-packages
+# apt remove linux-firmware-raspi2 -y --allow-change-held-packages
 
 # % Update all software to current from Ubuntu apt repositories
 apt update && apt dist-upgrade -y
@@ -244,8 +242,7 @@ apt autoremove -y && apt clean && apt autoclean
 # % Force fsck on next reboot
 touch /forcefsck
 
-# % Finished, exit
-EOF
+exit
 
 sudo fstrim -av
 sudo e4defrag /mnt/*
