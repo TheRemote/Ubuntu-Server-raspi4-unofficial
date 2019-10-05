@@ -14,6 +14,7 @@ For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-serv
 -Added lines in config.txt to configure SPI and i2C -- you can uncomment these lines if you need to enable them<br>
 -Updated WiFi firmware<br>
 -Added missing regulatory.db files (used by WiFi) to /lib/firmware<br>
+-Note for Kubuntu desktop: the compositor needs to be disabled for everything to draw correctly.  Use the shortcut Alt + Shift + F12 to disable the compositor and everything will draw normally.  Now go into the Settings app and go to the "Compositor" section and uncheck "Enable compositor at startup" to prevent it from turning back on when you reboot.<br>
 <br>
 <strong>October 3rd 2019 - v10 Desktop Pre-Release</strong><br>
 -Fixed issue with wireless not showing in v9<br>

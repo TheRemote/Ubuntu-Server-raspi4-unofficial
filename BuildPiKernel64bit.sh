@@ -38,16 +38,20 @@ sudo rm -rf firmware-nonfree
 git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree --depth 1
 cd firmware-nonfree
 git pull
-# % Get regulatory.db
-wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/regulatory.db
-wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/regulatory.db.p7s
+
 # % Get Bluetooth firmware
 cd brcm
 wget https://github.com/RPi-Distro/bluez-firmware/raw/master/broadcom/BCM4345C0.hcd
+
+# % Get Wireless firmware
 sudo rm -f brcmfmac43455-sdio.bin
 sudo rm -f brcmfmac43455-sdio.clm_blob
 wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.bin
 wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.clm_blob
+
+# % Get regulatory.db
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/regulatory.db
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/regulatory.db.p7s
 
 # GET FIRMWARE
 cd ~
@@ -234,6 +238,9 @@ apt autoremove -y && apt clean && apt autoclean
 touch /forcefsck
 
 exit
+
+# % Remove any crash files generated during chroot
+sudo rm /mnt/var/crash/*
 
 # % Copy latest firmware to Ubuntu image
 sudo rm -rf firmware-nonfree/.git*
