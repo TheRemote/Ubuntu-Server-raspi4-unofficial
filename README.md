@@ -2,7 +2,7 @@ This is an initial testing pre-release of a unofficial build of Ubuntu Server 18
 <br>
 I have included both the script to create it yourself from the official images as a base as well as a precompiled image that you can download and simply write straight to your SD card.  Note that the script is more of a process and not one that you can just clone and use.  Please read through it if you want to build the image as there are lines commented that you will want to uncomment if you are building from scratch.<br>
 <br>
-For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/ or including a walkthrough and lots of comments / discussion.<br>
+For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/ including a walkthrough and lots of comments / discussion.<br>
 <br>
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
