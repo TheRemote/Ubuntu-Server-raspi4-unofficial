@@ -31,16 +31,6 @@ cd gcc-9.2.0-build
 make all-gcc -j4
 make install-gcc
 
-
-# BUILD RPI TOOLS FOR ARMSTUB8
-
-cd ~
-git clone https://github.com/raspberrypi/tools.git rpi-tools
-cd rpi-tools/armstubs
-git checkout 7f4a937e1bacbc111a22552169bc890b4bb26a94
-PATH=$PATH:$TOOLCHAIN/bin make armstub8-gic.bin
-
-
 # GET FIRMWARE NON-FREE
 
 cd ~
@@ -48,13 +38,16 @@ sudo rm -rf firmware-nonfree
 git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree --depth 1
 cd firmware-nonfree
 git pull
+# % Get regulatory.db
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/regulatory.db
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/regulatory.db.p7s
 # % Get Bluetooth firmware
 cd brcm
 wget https://github.com/RPi-Distro/bluez-firmware/raw/master/broadcom/BCM4345C0.hcd
 sudo rm -f brcmfmac43455-sdio.bin
 sudo rm -f brcmfmac43455-sdio.clm_blob
-wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware/brcm/brcmfmac43455-sdio.bin
-wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware/brcm/brcmfmac43455-sdio.clm_blob
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.bin
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.clm_blob
 
 # GET FIRMWARE
 cd ~
@@ -97,8 +90,8 @@ cd ~/rpi-linux
 PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu-
 export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 # % Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
-make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
-depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
+sudo make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
+#depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
 export KERNEL_BUILD_DIR=`realpath ./kernel-build`
 cd ~
 
@@ -114,8 +107,6 @@ echo "Using loop $MountXZ"
 sudo mount /dev/mapper/"${MountXZ}"p2 /mnt
 sudo rm -rf /mnt/boot/firmware/*
 sudo mount /dev/mapper/"${MountXZ}"p1 /mnt/boot/firmware
-
-sudo fstrim -av
 
 # % Clean out old firmware, kernel and modules that don't support RPI 4
 sudo rm -rf /mnt/boot/firmware/*
@@ -139,10 +130,10 @@ sudo mkdir /mnt/boot/firmware/overlays
 sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/dts/broadcom/*.dtb /mnt/boot/firmware
 sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/dts/overlays/*.dtb* /mnt/boot/firmware/overlays
 sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/Image /mnt/boot/firmware/kernel8.img
-sudo cp -vf rpi-tools/armstubs/armstub8-gic.bin /mnt/boot/firmware/armstub8-gic.bin
 sudo cp -vf rpi-linux/kernel-build/vmlinux /mnt/boot/vmlinuz-"${KERNEL_VERSION}"
 sudo cp -vf rpi-linux/kernel-build/System.map /mnt/boot/System.map-"${KERNEL_VERSION}"
 sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/config-"${KERNEL_VERSION}"
+
 # % Create symlinks to our custom kernel -- this allows initramfs to find our kernel and update modules successfully
 (
   cd /mnt/boot
@@ -150,8 +141,8 @@ sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/config-"${KERNEL_VERSION}"
   sudo ln -s initrd.img-"${KERNEL_VERSION}" initrd.img
 )
 # % Copy gpu firmware via start*.elf and fixup*.dat files
-sudo cp -vf firmware/boot/start*.elf /mnt/boot/firmware
-sudo cp -vf firmware/boot/fixup*.dat /mnt/boot/firmware
+sudo cp -vf firmware/boot/*.elf /mnt/boot/firmware
+sudo cp -vf firmware/boot/*.dat /mnt/boot/firmware
 
 # % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
 sudo rm /mnt/var/lib/initramfs-tools/*
@@ -161,10 +152,6 @@ echo "$sha1sum  /boot/vmlinuz-${KERNEL_VERSION}" | sudo -A tee -a /mnt/var/lib/i
 # % Copy the new kernel modules to the Ubuntu image
 sudo mkdir /mnt/lib/modules/${KERNEL_VERSION}
 sudo cp -ravf rpi-linux/kernel-build/kernel-install/* /mnt
-
-# % Copy latest firmware to Ubuntu image
-sudo rm -rf firmware-nonfree/.git*
-sudo cp -ravf firmware-nonfree/* /mnt/lib/firmware
 
 # % Copy System.map, kernel .config and Module.symvers to Ubuntu image
 sudo cp -vf rpi-linux/kernel-build/System.map /mnt/boot/firmware
@@ -194,8 +181,6 @@ sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /mnt/lib/modules-load.d/open-iscsi.conf
 grep "ARRAY devices" /mnt/etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo -A tee -a /mnt/etc/mdadm/mdadm.conf >/dev/null;
 
 # CHROOT
-# % Copy necessary packages
-sudo cp extras/*.deb /mnt/
 
 # % Copy hosts file to prevent slow sudo commands
 sudo rm -f /mnt/etc/hosts
@@ -233,16 +218,14 @@ apt remove linux-firmware-raspi2 -y --allow-change-held-packages
 # % Update all software to current from Ubuntu apt repositories
 apt update && apt dist-upgrade -y
 
-# % Update initramfs
-update-initramfs -u
-
 # % INSTALL HAVAGED - prevents low entropy from making the Pi take a long time to start up.
-dpkg -i libhavege1_1.9.1-6_arm64.deb
-dpkg -i haveged_1.9.1-6_arm64.deb
-rm -f *.deb
+apt install haveged -y
 
 # % Remove ureadahead, does not support arm and makes our bootup unclean when checking systemd status
 apt remove ureadahead libnih1 -y
+
+# % Update initramfs
+update-initramfs -u
 
 # % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
@@ -251,6 +234,10 @@ apt autoremove -y && apt clean && apt autoclean
 touch /forcefsck
 
 exit
+
+# % Copy latest firmware to Ubuntu image
+sudo rm -rf firmware-nonfree/.git*
+sudo cp -ravf firmware-nonfree/* /mnt/lib/firmware
 
 sudo fstrim -av
 sudo e4defrag /mnt/*

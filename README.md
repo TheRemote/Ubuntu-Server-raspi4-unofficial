@@ -10,6 +10,11 @@ This will hold the package so it doesn't break your installation while letting y
 <br>
 To download the prebuilt image go to the "Releases" section to get the download.<br>
 <br>
+<strong>October 5th 2019 - v11 Desktop Pre-Release</strong><br>
+-Updated kernel to 4.19.76<br>
+-Fixed bluetooth by adding missing firmware file not present in firmware-nonfree<br>
+-Updated /boot/firmware/config.txt with useful HDMI debug flags -- uncomment some of these such as hdmi_safe if you are not getting display output<br>
+<br>
 <strong>October 3rd 2019 - v10 Desktop Pre-Release</strong><br>
 -Fixed issue with wireless not showing in v9<br>
 -Fixed bad symlink creation (pull request #38)<br>
