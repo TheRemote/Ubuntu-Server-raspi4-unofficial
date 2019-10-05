@@ -1,19 +1,19 @@
 This is an initial testing pre-release of a unofficial build of Ubuntu Server 18.04.3 preinstalled server for the new (and currently unsupported officially) Raspberry Pi 4.<br>
 <br>
-I have included both the script to create it yourself from the official images as a base as well as a precompiled image that you can download and simply write straight to your SD card.  The included script makes the process of modifying the current official release to work on the Raspberry Pi 4 much easier.<br>
+I have included both the script to create it yourself from the official images as a base as well as a precompiled image that you can download and simply write straight to your SD card.  Note that the script is more of a process and not one that you can just clone and use.  Please read through it if you want to build the image as there are lines commented that you will want to uncomment if you are building from scratch.<br>
 <br>
 For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/ or including a walkthrough and lots of comments / discussion.<br>
 <br>
-All 4 GB of RAM are available in this preinstalled image.  WiFi, Bluetooth, and other drivers have been updated for the Raspberry Pi 4.<br>
-<br>
-This will hold the package so it doesn't break your installation while letting you fully update everything else until official support is released.<br>
-<br>
-To download the prebuilt image go to the "Releases" section to get the download.<br>
+<strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <strong>October 5th 2019 - v11 Desktop Pre-Release</strong><br>
 -Updated kernel to 4.19.76<br>
+-Fixed several video driver issues including very low performance, YouTube videos in full screen freezing the Pi, low color resolution in xubuntu-desktop and graphical artifacts in kubuntu-desktop<br>
 -Fixed bluetooth by adding missing firmware file not present in firmware-nonfree<br>
 -Updated /boot/firmware/config.txt with useful HDMI debug flags -- uncomment some of these such as hdmi_safe if you are not getting display output<br>
+-Added lines in config.txt to configure SPI and i2C -- you can uncomment these lines if you need to enable them<br>
+-Updated WiFi firmware<br>
+-Added missing regulatory.db files (used by WiFi) to /lib/firmware<br>
 <br>
 <strong>October 3rd 2019 - v10 Desktop Pre-Release</strong><br>
 -Fixed issue with wireless not showing in v9<br>

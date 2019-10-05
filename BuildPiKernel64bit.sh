@@ -213,7 +213,7 @@ add-apt-repository ppa:ubuntu-x-swat/updates -y
 apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
 
 # % Remove linux-firmware-raspi2
-apt remove linux-firmware-raspi2 -y --allow-change-held-packages
+apt remove linux-firmware-raspi2 --allow-change-held-packages -y
 
 # % Update all software to current from Ubuntu apt repositories
 apt update && apt dist-upgrade -y
