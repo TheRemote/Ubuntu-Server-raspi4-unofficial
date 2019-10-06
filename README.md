@@ -6,6 +6,10 @@ For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-serv
 <br>
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
+<strong>October 6th 2019 - v12 Desktop Pre-Release</strong><br>
+-Fixed Bluetooth not automatically attaching (now appears in both console and desktop mode)<br>
+-Updated firmware using the latest from the Raspbian image<br>
+<br>
 <strong>October 5th 2019 - v11 Desktop Pre-Release</strong><br>
 -Updated kernel to 4.19.76<br>
 -Fixed several video driver issues including very low performance, YouTube videos in full screen freezing the Pi, low color resolution in xubuntu-desktop and graphical artifacts in kubuntu-desktop<br>

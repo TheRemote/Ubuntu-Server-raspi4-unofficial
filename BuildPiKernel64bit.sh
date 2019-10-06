@@ -6,30 +6,34 @@ sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-de
 sudo apt-get install qemu-user-static -y
 
 # TOOLCHAIN
-
 cd ~
-mkdir -p toolchains/aarch64
-cd toolchains/aarch64
-export TOOLCHAIN=`pwd`
-cd ~
+if [ -d "toolchains" ]; then
+  cd toolchains/aarch64
+  export TOOLCHAIN=`pwd`
+else
+  mkdir -p toolchains/aarch64
+  cd toolchains/aarch64
+  export TOOLCHAIN=`pwd`
+  cd ~
 
-cd "$TOOLCHAIN"
-wget https://ftp.gnu.org/gnu/binutils/binutils-2.32.tar.bz2
-tar -xf binutils-2.32.tar.bz2
-mkdir binutils-2.32-build
-cd binutils-2.32-build
-../binutils-2.32/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --disable-nls
-make -j4
-make install
+  cd "$TOOLCHAIN"
+  wget https://ftp.gnu.org/gnu/binutils/binutils-2.32.tar.bz2
+  tar -xf binutils-2.32.tar.bz2
+  mkdir binutils-2.32-build
+  cd binutils-2.32-build
+  ../binutils-2.32/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --disable-nls
+  make -j4
+  make install
 
-cd "$TOOLCHAIN"
-wget https://ftp.gnu.org/gnu/gcc/gcc-9.2.0/gcc-9.2.0.tar.gz
-tar -xf gcc-9.2.0.tar.gz
-mkdir gcc-9.2.0-build
-cd gcc-9.2.0-build
-../gcc-9.2.0/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --with-newlib --without-headers --disable-nls --disable-shared --disable-threads --disable-libssp --disable-decimal-float --disable-libquadmath --disable-libvtv --disable-libgomp --disable-libatomic --enable-languages=c
-make all-gcc -j4
-make install-gcc
+  cd "$TOOLCHAIN"
+  wget https://ftp.gnu.org/gnu/gcc/gcc-9.2.0/gcc-9.2.0.tar.gz
+  tar -xf gcc-9.2.0.tar.gz
+  mkdir gcc-9.2.0-build
+  cd gcc-9.2.0-build
+  ../gcc-9.2.0/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --with-newlib --without-headers --disable-nls --disable-shared --disable-threads --disable-libssp --disable-decimal-float --disable-libquadmath --disable-libvtv --disable-libgomp --disable-libatomic --enable-languages=c
+  make all-gcc -j4
+  make install-gcc
+fi
 
 # GET FIRMWARE NON-FREE
 
@@ -39,19 +43,14 @@ git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree --dept
 cd firmware-nonfree
 git pull
 
-# % Get Bluetooth firmware
-cd brcm
-wget https://github.com/RPi-Distro/bluez-firmware/raw/master/broadcom/BCM4345C0.hcd
+# % firmware-raspbian should be a copy of /lib/firmware from the latest Raspbian image
+cp -rf ~/firmware-raspbian/* ~/firmware-nonfree
 
 # % Get Wireless firmware
 sudo rm -f brcmfmac43455-sdio.bin
 sudo rm -f brcmfmac43455-sdio.clm_blob
-wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.bin
-wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.clm_blob
-
-# % Get regulatory.db
-wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/regulatory.db
-wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/regulatory.db.p7s
+sudo wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.bin
+sudo wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.clm_blob
 
 # GET FIRMWARE
 cd ~
@@ -64,43 +63,46 @@ git pull
 
 # % Check out the 4.19.y kernel branch -- if building and future versions are available you can update which branch is checked out here
 cd ~
-git clone https://github.com/raspberrypi/linux.git rpi-linux --single-branch --branch rpi-4.19.y --depth 1
-cd rpi-linux
-git checkout origin/rpi-4.19.y
+if [ ! -d "rpi-linux" ]; then
+  git clone https://github.com/raspberrypi/linux.git rpi-linux --single-branch --branch rpi-4.19.y --depth 1
+  cd rpi-linux
+  git checkout origin/rpi-4.19.y
 
-# CONFIGURE / MAKE
+  # CONFIGURE / MAKE
 
-cd ~/rpi-linux
-PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  bcm2711_defconfig
-cd kernel-build
 
-# % If you want to build yourself from scratch (without using the .config from the repository) uncomment the lines below
-#wget https://raw.githubusercontent.com/sakaki-/bcmrpi3-kernel-bis/master/conform_config.sh
-#chmod +x conform_config.sh
-#./conform_config.sh
-#wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/conform_config_jamesachambers.sh
-#chmod +x conform_config_jamesachambers.sh
-#./conform_config_jamesachambers.sh
+  cd ~/rpi-linux
+  PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  bcm2711_defconfig
 
-# % This pulls the latest config from the repository -- if building yourself/customizing comment out
-rm .config
-wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
-cd ~/rpi-linux
+  # % If you want to build yourself from scratch (without using the .config from the repository) uncomment the lines below
+  wget https://raw.githubusercontent.com/sakaki-/bcmrpi3-kernel-bis/master/conform_config.sh
+  chmod +x conform_config.sh
+  ./conform_config.sh
+  wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/conform_config_jamesachambers.sh
+  chmod +x conform_config_jamesachambers.sh
+  ./conform_config_jamesachambers.sh
 
-# % If you want to change options, use the line below to enter the menuconfig kernel utility and configure your own kernel config flags
-#PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  menuconfig
+  # % This pulls the latest config from the repository -- if building yourself/customizing comment out
+  rm .config
+  wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
+  cd ~/rpi-linux
 
-# % The line below starts the kernel build
-PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu-
-export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
-# % Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
-sudo make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
-#depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
-export KERNEL_BUILD_DIR=`realpath ./kernel-build`
-cd ~
+  # % If you want to change options, use the line below to enter the menuconfig kernel utility and configure your own kernel config flags
+  #PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  menuconfig
+
+  # % The line below starts the kernel build
+  PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu-
+  export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
+  # % Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
+  sudo make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
+  # % Create kernel headers
+  sudo make -j4 O=./kernel-build/ INSTALL_HDR_PATH=./kernel-install/usr/src/linux-headers-${KERNEL_VERSION} headers_install
+  #sudo depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
+  export KERNEL_BUILD_DIR=`realpath ./kernel-build`
+  cd ~
+fi
 
 # MOUNT IMAGE
-
 xzcat ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz > ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
 MountXZ=$(sudo kpartx -av ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
 MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
@@ -113,6 +115,7 @@ sudo rm -rf /mnt/boot/firmware/*
 sudo mount /dev/mapper/"${MountXZ}"p1 /mnt/boot/firmware
 
 # % Clean out old firmware, kernel and modules that don't support RPI 4
+sudo rm -rf /mnt/lib/firmware/4.15.0-1041-raspi2
 sudo rm -rf /mnt/boot/firmware/*
 sudo rm -rf /mnt/usr/src/*
 sudo rm -rf /mnt/lib/modules/*
@@ -198,17 +201,32 @@ sudo mkdir -p /mnt/run/systemd/resolve
 cat /run/systemd/resolve/stub-resolv.conf | sudo -A tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
 sudo touch /mnt/etc/modules-load.d/cups-filters.conf
 
+# % Startup tweaks to fix bluetooth, disable compositing in KDE
+sudo rm /mnt/etc/rc.local
+cat << EOF | sudo tee /mnt/etc/rc.local
+#!/bin/sh -e
+#
+# rc.local
+#
+
+# Enable bluetooth
+if [ -n "`which hciattach`" ]; then
+  echo "Attaching Bluetooth controller ..."
+  hciattach /dev/ttyAMA0 bcm43xx 921600
+fi
+
+exit 0
+EOF
+sudo chmod +x /mnt/etc/rc.local
+
 # % Enter Ubuntu image chroot
-sudo chroot /mnt /bin/bash
+sudo chroot /mnt /bin/bash << EOF
 
 # % Fix /lib/firmware permission and symlink
 chown -R root /lib
 
-# % Run depmod from the chroot to make sure all new kernel modules get picked up
-
-Version=$(ls /lib/modules | xargs)
-echo "Kernel modules version: $Version"
-depmod -a "$Version"
+# % Add symbolic link from /etc/firmware to /lib/firmware (fixes Bluetooth)
+ln -s /lib/firmware /etc/firmware
 
 # % Add updated mesa repository for video driver support
 add-apt-repository ppa:ubuntu-x-swat/updates -y
@@ -225,6 +243,9 @@ apt update && apt dist-upgrade -y
 # % INSTALL HAVAGED - prevents low entropy from making the Pi take a long time to start up.
 apt install haveged -y
 
+# % Install Bluetooth stack
+apt install bluez -y
+
 # % Remove ureadahead, does not support arm and makes our bootup unclean when checking systemd status
 apt remove ureadahead libnih1 -y
 
@@ -237,7 +258,7 @@ apt autoremove -y && apt clean && apt autoclean
 # % Force fsck on next reboot
 touch /forcefsck
 
-exit
+EOF
 
 # % Remove any crash files generated during chroot
 sudo rm /mnt/var/crash/*
