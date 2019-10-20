@@ -47,10 +47,11 @@ git pull
 cp -rf ~/firmware-raspbian/* ~/firmware-nonfree
 
 # % Get Wireless firmware
+cd ~/firmware-nonfree/brcm
 sudo rm -f brcmfmac43455-sdio.bin
 sudo rm -f brcmfmac43455-sdio.clm_blob
-sudo wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.bin
-sudo wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.clm_blob
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.bin
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.clm_blob
 
 # GET FIRMWARE
 cd ~
@@ -69,23 +70,26 @@ if [ ! -d "rpi-linux" ]; then
   git checkout origin/rpi-4.19.y
 
   # CONFIGURE / MAKE
-
-
   cd ~/rpi-linux
   PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  bcm2711_defconfig
 
+  cd kernel-build
   # % If you want to build yourself from scratch (without using the .config from the repository) uncomment the lines below
   wget https://raw.githubusercontent.com/sakaki-/bcmrpi3-kernel-bis/master/conform_config.sh
   chmod +x conform_config.sh
   ./conform_config.sh
+  rm -f conform_config.sh
   wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/conform_config_jamesachambers.sh
   chmod +x conform_config_jamesachambers.sh
   ./conform_config_jamesachambers.sh
+  rm -f confirm_config_jamesachambers.sh
+
+  cd ~/rpi-linux
 
   # % This pulls the latest config from the repository -- if building yourself/customizing comment out
-  rm .config
-  wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
-  cd ~/rpi-linux
+  #rm .config
+  #wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
+  #cd ~/rpi-linux
 
   # % If you want to change options, use the line below to enter the menuconfig kernel utility and configure your own kernel config flags
   #PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  menuconfig
@@ -95,8 +99,6 @@ if [ ! -d "rpi-linux" ]; then
   export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
   # % Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
   sudo make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
-  # % Create kernel headers
-  sudo make -j4 O=./kernel-build/ INSTALL_HDR_PATH=./kernel-install/usr/src/linux-headers-${KERNEL_VERSION} headers_install
   #sudo depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
   export KERNEL_BUILD_DIR=`realpath ./kernel-build`
   cd ~
@@ -161,12 +163,14 @@ sudo mkdir /mnt/lib/modules/${KERNEL_VERSION}
 sudo cp -ravf rpi-linux/kernel-build/kernel-install/* /mnt
 
 # % Copy System.map, kernel .config and Module.symvers to Ubuntu image
-sudo cp -vf rpi-linux/kernel-build/System.map /mnt/boot/firmware
-sudo cp -vf rpi-linux/kernel-build/Module.symvers /mnt/boot/firmware
-sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/firmware/config
+sudo cp -vf rpi-linux/kernel-build/System.map /mnt/usr/src/linux-headers-${KERNEL_VERSION}/System.map
+sudo cp -vf rpi-linux/kernel-build/Module.symvers /mnt/usr/src/linux-headers-${KERNEL_VERSION}/Module.symvers
+sudo cp -vf rpi-linux/kernel-build/.config /mnt/usr/src/linux-headers-${KERNEL_VERSION}/config
 
-# % Perform one more defrag after installing our new modules and firmware
-sudo fstrim -av
+# % Create kernel header symlink
+cd /mnt
+sudo rm lib/modules/${KERNEL_VERSION}/build
+sudo ln -s usr/src/linux-headers-${KERNEL_VERSION} lib/modules/${KERNEL_VERSION}/build
 
 # QUIRKS
 
@@ -201,7 +205,7 @@ sudo mkdir -p /mnt/run/systemd/resolve
 cat /run/systemd/resolve/stub-resolv.conf | sudo -A tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
 sudo touch /mnt/etc/modules-load.d/cups-filters.conf
 
-# % Startup tweaks to fix bluetooth, disable compositing in KDE
+# % Startup tweaks to fix bluetooth
 sudo rm /mnt/etc/rc.local
 cat << EOF | sudo tee /mnt/etc/rc.local
 #!/bin/sh -e
@@ -213,6 +217,14 @@ cat << EOF | sudo tee /mnt/etc/rc.local
 if [ -n "`which hciattach`" ]; then
   echo "Attaching Bluetooth controller ..."
   hciattach /dev/ttyAMA0 bcm43xx 921600
+fi
+
+# % Fix crackling sound
+if [ -n "`which pulseaudio`" ]; then
+  GrepCheck=$(cat /etc/pulse/default.pa | grep "load-module module-udev-detect tsched=0")
+  if [ ! -n "$GrepCheck" ]; then
+    sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
+  fi
 fi
 
 exit 0
@@ -231,6 +243,9 @@ ln -s /lib/firmware /etc/firmware
 # % Add updated mesa repository for video driver support
 add-apt-repository ppa:ubuntu-x-swat/updates -y
 
+# % Add Raspberry Pi Userland repository
+sudo add-apt-repository ppa:ubuntu-raspi2/ppa
+
 # % Hold Ubuntu packages that will break booting from the Pi 4
 apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
 
@@ -246,6 +261,36 @@ apt install haveged -y
 # % Install Bluetooth stack
 apt install bluez -y
 
+# % Install Wireless tools
+apt install wireless-tools iw rfkill -y
+
+# % Install Raspberry Pi userland utilities (vcgencmd, etc.)
+apt install libraspberrypi-bin -y
+
+# % Install raspi-config utility
+apt install libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils -y
+wget https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191005_all.deb
+dpkg -i raspi-config_20191005_all.deb
+rm raspi-config_20191005_all.deb
+sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
+sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/bin/raspi-config
+sed -i "s:armhf:arm64:g" /usr/bin/raspi-config
+sed -i "s:/boot/overlays:/boot/firmware/overlays:g" /usr/bin/raspi-config
+sed -i "s:/boot/start:/boot/firmware/start:g" /usr/bin/raspi-config
+sed -i "s:/boot/arm:/boot/firmware/arm:g" /usr/bin/raspi-config
+sed -i "s:/boot :/boot/firmware :g" /usr/bin/raspi-config
+sed -i "s:\\/boot\.:\\/boot\\\/firmware\.:g" /usr/bin/raspi-config
+sed -i "s:dtparam i2c_arm=$SETTING:dtparam -d /boot/firmware/overlays i2c_arm=$SETTING:g" /usr/bin/raspi-config
+sed -i "s:dtparam spi=$SETTING:dtparam -d /boot/firmware/overlays spi=$SETTING:g" /usr/bin/raspi-config
+sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-pre
+sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-post
+
+# % Add group and udev rule for i2c so it works for non-root Ubuntu user
+groupadd i2c
+usermod -aG i2c ubuntu
+rm /etc/udev/rules.d/10-local_i2c_group.rules
+echo 'KERNEL=="i2c-[0-9]*", GROUP="i2c"' >> /etc/udev/rules.d/10-local_i2c_group.rules
+
 # % Remove ureadahead, does not support arm and makes our bootup unclean when checking systemd status
 apt remove ureadahead libnih1 -y
 
@@ -260,6 +305,37 @@ touch /forcefsck
 
 EOF
 
+# % Set regulatory crda to enable 5 Ghz wireless
+sudo rm /mnt/etc/default/crda
+cat << EOF | sudo tee /mnt/etc/default/crda
+# Set REGDOMAIN to a ISO/IEC 3166-1 alpha2 country code so that iw(8) may set
+# the initial regulatory domain setting for IEEE 802.11 devices which operate
+# on this system.
+#
+# Governments assert the right to regulate usage of radio spectrum within
+# their respective territories so make sure you select a ISO/IEC 3166-1 alpha2
+# country code suitable for your location or you may infringe on local
+# legislature. See `/usr/share/zoneinfo/zone.tab' for a table of timezone
+# descriptions containing ISO/IEC 3166-1 alpha2 country codes.
+
+REGDOMAIN=US
+EOF
+
+# % Set loopback address in hosts to prevent slow bootup
+sudo rm /mnt/etc/hosts
+cat << EOF | sudo tee /mnt/etc/hosts
+127.0.0.1 localhost
+127.0.1.1 ubuntu
+
+# The following lines are desirable for IPv6 capable hosts
+::1 ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+ff02::3 ip6-allhosts
+EOF
+
 # % Remove any crash files generated during chroot
 sudo rm /mnt/var/crash/*
 
@@ -270,9 +346,13 @@ sudo cp -ravf firmware-nonfree/* /mnt/lib/firmware
 sudo fstrim -av
 sudo e4defrag /mnt/*
 
-# UNMOUNT AND SAVE CHANGES TO IMAGE
+# UNMOUNT
 
 sudo umount /mnt/boot/firmware
 sudo umount /mnt
+
+# Run fsck on image
+sudo fsck.ext4 -f -p -v -c /dev/mapper/"${MountXZ}"p2
+
+# Save image
 sudo kpartx -dv ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
-sudo losetup -d /dev/$MountXZ

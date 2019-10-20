@@ -6,6 +6,13 @@ For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-serv
 <br>
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
+<strong>October 20th 2019 - v13 Desktop Pre-Release</strong><br>
+-Updated kernel to 4.19.79<br>
+-Added 5Ghz WiFi support (default regulatory domain US, change in /etc/default/crda if desired)<br>
+-Added raspi-config utility to image (not all functions tested yet, enabling i2c/spi works, test with caution and not on a fully setup image that you'll be sad if you break).  File an issue if you find problems!<br>
+-Added Raspberry Pi userland utilities such as vcgencmd (note: this is an older build and doesn't support some of the newest features, but it lets you do the essentials like measure_temp, get_config, etc.)<br>
+-Fixed sound artifacts when playing YouTube/videos in browser<br>
+<br>
 <strong>October 6th 2019 - v12 Desktop Pre-Release</strong><br>
 -Fixed Bluetooth not automatically attaching (now appears in both console and desktop mode)<br>
 -Updated firmware using the latest from the Raspbian image<br>
