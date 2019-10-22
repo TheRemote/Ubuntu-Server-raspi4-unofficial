@@ -4,6 +4,13 @@
 
 sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static -y
 
+# PULL UBUNTU RASPBERRY PI 3 IMAGE (TODO grow rootfs by ~200MB, otherwise runs out of space)
+
+FILE_IMG3="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
+if [ ! -f "$FILE_IMG3" ]; then
+  wget http://cdimage.ubuntu.com/ubuntu/releases/18.04.3/release/$FILE_IMG3
+fi
+
 # TOOLCHAIN
 cd ~
 if [ -d "toolchains" ]; then
@@ -109,6 +116,7 @@ MountXZ=$(sudo kpartx -av ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
 MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
 MountXZ="${MountXZ%p1}"
 echo "Using loop $MountXZ"
+sleep 5
 
 # % Mount the image on /mnt (rootfs) and /mnt/boot/firmware (bootfs)
 sudo mount /dev/mapper/"${MountXZ}"p2 /mnt
@@ -162,6 +170,7 @@ sudo mkdir /mnt/lib/modules/${KERNEL_VERSION}
 sudo cp -ravf rpi-linux/kernel-build/kernel-install/* /mnt
 
 # % Copy System.map, kernel .config and Module.symvers to Ubuntu image
+sudo mkdir -p /mnt/usr/src/linux-headers-${KERNEL_VERSION}/
 sudo cp -vf rpi-linux/kernel-build/System.map /mnt/usr/src/linux-headers-${KERNEL_VERSION}/System.map
 sudo cp -vf rpi-linux/kernel-build/Module.symvers /mnt/usr/src/linux-headers-${KERNEL_VERSION}/Module.symvers
 sudo cp -vf rpi-linux/kernel-build/.config /mnt/usr/src/linux-headers-${KERNEL_VERSION}/config
@@ -331,6 +340,8 @@ EOF
 # % Remove any crash files generated during chroot
 sudo rm /mnt/var/crash/*
 
+cd ~
+
 # % Copy latest firmware to Ubuntu image
 sudo rm -rf firmware-nonfree/.git*
 sudo cp -ravf firmware-nonfree/* /mnt/lib/firmware
@@ -342,18 +353,16 @@ cd ~
 
 # UNMOUNT
 
-sleep 1s
+sleep 5
 
 sudo umount /mnt/boot/firmware
+sleep 5
 sudo umount /mnt
-
-sleep 1s
-
-sudo umount /mnt/boot/firmware
-sudo umount /mnt
+sleep 5
 
 # Run fsck on image
 sudo fsck.ext4 -f -p -v -c /dev/mapper/"${MountXZ}"p2
+sleep 5
 
 # Save image
 sudo kpartx -dv ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
