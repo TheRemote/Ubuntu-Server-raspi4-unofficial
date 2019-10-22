@@ -2,8 +2,7 @@
 
 # INSTALL DEPENDENCIES
 
-sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx -y
-sudo apt-get install qemu-user-static -y
+sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static -y
 
 # PULL UBUNTU RASPBERRY PI 3 IMAGE (TODO grow rootfs by ~200MB, otherwise runs out of space)
 
@@ -54,11 +53,11 @@ git pull
 cp -rf ~/firmware-raspbian/* ~/firmware-nonfree
 
 # % Get Wireless firmware
-cd ~/firmware-nonfree/brcm
-sudo rm -f brcmfmac43455-sdio.bin
-sudo rm -f brcmfmac43455-sdio.clm_blob
-wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.bin
-wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.clm_blob
+#cd ~/firmware-nonfree/brcm
+#sudo rm -f brcmfmac43455-sdio.bin
+#sudo rm -f brcmfmac43455-sdio.clm_blob
+#sudo wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.bin
+#sudo wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.clm_blob
 
 # GET FIRMWARE
 cd ~
@@ -89,7 +88,7 @@ if [ ! -d "rpi-linux" ]; then
   wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/conform_config_jamesachambers.sh
   chmod +x conform_config_jamesachambers.sh
   ./conform_config_jamesachambers.sh
-  rm -f confirm_config_jamesachambers.sh
+  rm -f conform_config_jamesachambers.sh
 
   cd ~/rpi-linux
 
@@ -106,7 +105,7 @@ if [ ! -d "rpi-linux" ]; then
   export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
   # % Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
   sudo make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
-  #sudo depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
+  sudo depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
   export KERNEL_BUILD_DIR=`realpath ./kernel-build`
   cd ~
 fi
@@ -202,10 +201,6 @@ grep "ARRAY devices" /mnt/etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices
 
 # CHROOT
 
-# % Copy hosts file to prevent slow sudo commands
-sudo rm -f /mnt/etc/hosts
-sudo cp extras/hosts /mnt/etc/hosts
-
 # % Copy QEMU bin file so we can chroot into arm64 from x86_64
 sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
 
@@ -222,18 +217,18 @@ cat << EOF | sudo tee /mnt/etc/rc.local
 # rc.local
 #
 
-# Enable bluetooth
-if [ -n "`which hciattach`" ]; then
-  echo "Attaching Bluetooth controller ..."
-  hciattach /dev/ttyAMA0 bcm43xx 921600
-fi
-
 # % Fix crackling sound
 if [ -n "`which pulseaudio`" ]; then
   GrepCheck=$(cat /etc/pulse/default.pa | grep "load-module module-udev-detect tsched=0")
   if [ ! -n "$GrepCheck" ]; then
     sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
   fi
+fi
+
+# Enable bluetooth
+if [ -n "`which hciattach`" ]; then
+  echo "Attaching Bluetooth controller ..."
+  hciattach /dev/ttyAMA0 bcm43xx 921600
 fi
 
 exit 0
@@ -309,9 +304,6 @@ update-initramfs -u
 # % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
 
-# % Force fsck on next reboot
-touch /forcefsck
-
 EOF
 
 # % Set regulatory crda to enable 5 Ghz wireless
@@ -357,9 +349,12 @@ sudo cp -ravf firmware-nonfree/* /mnt/lib/firmware
 sudo fstrim -av
 sudo e4defrag /mnt/*
 
+cd ~
+
 # UNMOUNT
 
 sleep 5
+
 sudo umount /mnt/boot/firmware
 sleep 5
 sudo umount /mnt
