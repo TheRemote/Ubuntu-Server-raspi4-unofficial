@@ -117,6 +117,62 @@ export KERNEL_BUILD_DIR=`realpath ./kernel-build`
 cd ~
 sudo rm -f ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
 xzcat ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz > ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
+
+sleep 2
+
+truncate -s +309715200 ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
+
+sleep 2
+
+MountXZ=$(sudo kpartx -avs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
+MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
+MountXZ="${MountXZ%p1}"
+echo "Using loop $MountXZ"
+
+# Get the starting offset of the root partition
+PART_START=$(sudo parted /dev/"${MountXZ}" -ms unit s p | grep ":ext4" | cut -f 2 -d: | sed 's/[^0-9]//g')
+
+sudo fdisk /dev/"${MountXZ}" <<EOF
+p
+d
+2
+n
+p
+2
+$PART_START
+
+p
+w
+EOF
+
+# Close and unmount image then reopen it to get the new mapping
+sudo kpartx -dvs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
+sleep 2
+MountXZ=$(sudo kpartx -avs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
+MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
+MountXZ="${MountXZ%p1}"
+echo "Using loop $MountXZ"
+
+# Run fsck
+sudo e2fsck -fva /dev/mapper/"$MountXZ"p2
+sync
+sleep 2
+
+sudo kpartx -dvs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
+sync
+sleep 2
+MountXZ=$(sudo kpartx -avs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
+MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
+MountXZ="${MountXZ%p1}"
+echo "Using loop $MountXZ"
+
+# Run resize2fs
+sudo resize2fs /dev/mapper/"${MountXZ}"p2
+sync
+sleep 2
+
+sudo kpartx -dvs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
+sleep 2
 MountXZ=$(sudo kpartx -avs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
 MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
 MountXZ="${MountXZ%p1}"
@@ -193,7 +249,7 @@ sudo ln -s usr/src/linux-headers-${KERNEL_VERSION} lib/modules/${KERNEL_VERSION}
 # % Fix WiFi
 # % The Pi 4 version returns boardflags3=0x44200100
 # % The Pi 3 version returns boardflags3=0x48200100cd
-sudo sed -i "s:0x48200100:0x44200100:g" /mnt/lib/firmware/brcm/brcmfmac43455-sdio.txt
+sudo sed -i "s:0x48200100:0x44200100:g" ~/firmware-build/brcm/brcmfmac43455-sdio.txt
 
 # % Remove flash-kernel hooks to prevent firmware updater from overriding our custom firmware
 sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
@@ -333,6 +389,13 @@ ff02::2 ip6-allrouters
 ff02::3 ip6-allhosts
 EOF
 
+# % Update fstab to allow fsck to run on rootfs
+sudo rm /mnt/etc/fstab
+cat << EOF | sudo tee /mnt/etc/fstab
+LABEL=writable	/	 ext4	defaults	0 1
+LABEL=system-boot       /boot/firmware  vfat    defaults        0       1
+EOF
+
 # % Remove any crash files generated during chroot
 sudo rm /mnt/var/crash/*
 sudo rm /mnt/var/run/*
@@ -343,9 +406,6 @@ cd ~
 sudo cp -ravf firmware-build/* /mnt/lib/firmware
 
 sync
-
-#sudo fstrim -av
-#sudo e4defrag /mnt/*
 
 cd ~
 
@@ -364,8 +424,6 @@ sleep 5
 sudo fsck.fat -av /dev/mapper/"${MountXZ}"p1
 sleep 5
 
-sudo resize2fs /dev/mapper/"${MountXZ}"p2
-
 sync
 
 sudo zerofree -v /dev/mapper/"${MountXZ}"p2
@@ -374,9 +432,10 @@ sleep 5
 sync
 
 # Save image
-sudo kpartx -dv ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
+sudo kpartx -dvs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
 
 sync
 
 # Clean up loops
 sudo losetup -d /dev/"${MountXZ}"
+
