@@ -39,3 +39,11 @@ set_kernel_config CONFIG_BLK_DEV_RBD y
 
 # CPU bandwidth provisioning for FAIR_GROUP_SCHED
 set_kernel_config CONFIG_CFS_BANDWIDTH y
+
+# Stream parsing
+set_kernel_config CONFIG_STREAM_PARSER y
+set_kernel_config CONFIG_BPF_STREAM_PARSER y
+
+# XDP sockets
+set_kernel_config CONFIG_XDP_SOCKETS y
+

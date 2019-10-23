@@ -2,7 +2,7 @@
 
 # INSTALL DEPENDENCIES
 
-sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static -y
+sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static zerofree systemd-container -y
 
 # PULL UBUNTU RASPBERRY PI 3 IMAGE (TODO grow rootfs by ~200MB, otherwise runs out of space)
 
@@ -44,27 +44,30 @@ fi
 # GET FIRMWARE NON-FREE
 
 cd ~
-sudo rm -rf firmware-nonfree
-git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree --depth 1
-cd firmware-nonfree
-git pull
-
-# % firmware-raspbian should be a copy of /lib/firmware from the latest Raspbian image
-cp -rf ~/firmware-raspbian/* ~/firmware-nonfree
-
-# % Get Wireless firmware
-#cd ~/firmware-nonfree/brcm
-#sudo rm -f brcmfmac43455-sdio.bin
-#sudo rm -f brcmfmac43455-sdio.clm_blob
-#sudo wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.bin
-#sudo wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/firmware-nonfree/brcm/brcmfmac43455-sdio.clm_blob
+if [ ! -d "firmware-nonfree" ]; then
+  sudo rm -rf firmware-nonfree
+  git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree --depth 1
+else
+  cd firmware-nonfree
+  git pull
+fi
 
 # GET FIRMWARE
 cd ~
-sudo rm -rf firmware
-git clone https://github.com/raspberrypi/firmware firmware --depth 1
-cd firmware
-git pull
+if [ ! -d "firmware" ]; then
+  git clone https://github.com/raspberrypi/firmware firmware --depth 1
+else
+  cd firmware
+  git pull
+fi
+
+# MAKE FIRMWARE BUILD DIR
+cd ~
+sudo rm -rf firmware-build
+mkdir firmware-build
+cp -rf ~/firmware-nonfree/* firmware-build
+cp -rf ~/firmware-raspbian/* firmware-build
+sudo rm -rf firmware-build/.git firmware-build/.github
 
 # BUILD KERNEL
 
@@ -80,7 +83,6 @@ if [ ! -d "rpi-linux" ]; then
   PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  bcm2711_defconfig
 
   cd kernel-build
-  # % If you want to build yourself from scratch (without using the .config from the repository) uncomment the lines below
   wget https://raw.githubusercontent.com/sakaki-/bcmrpi3-kernel-bis/master/conform_config.sh
   chmod +x conform_config.sh
   ./conform_config.sh
@@ -90,37 +92,43 @@ if [ ! -d "rpi-linux" ]; then
   ./conform_config_jamesachambers.sh
   rm -f conform_config_jamesachambers.sh
 
-  cd ~/rpi-linux
-
   # % This pulls the latest config from the repository -- if building yourself/customizing comment out
-  #rm .config
-  #wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
-  #cd ~/rpi-linux
+  rm .config
+  wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
+
+  cd ~/rpi-linux
 
   # % If you want to change options, use the line below to enter the menuconfig kernel utility and configure your own kernel config flags
   #PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  menuconfig
-
-  # % The line below starts the kernel build
-  PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu-
-  export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
-  # % Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
-  sudo make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
-  sudo depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
-  export KERNEL_BUILD_DIR=`realpath ./kernel-build`
-  cd ~
+else
+  cd ~/rpi-linux
+  git pull
 fi
 
+PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu-
+export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
+# % Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
+PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
+depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
+export KERNEL_BUILD_DIR=`realpath ./kernel-build`
+
+
 # MOUNT IMAGE
+cd ~
+sudo rm -f ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
 xzcat ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz > ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
 MountXZ=$(sudo kpartx -av ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
 MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
 MountXZ="${MountXZ%p1}"
 echo "Using loop $MountXZ"
-sleep 5
 
-# % Mount the image on /mnt (rootfs) and /mnt/boot/firmware (bootfs)
+sudo zerofree -v /dev/mapper/"${MountXZ}"p2
+
+# % Mount the image on /mnt (rootfs)
 sudo mount /dev/mapper/"${MountXZ}"p2 /mnt
+# % Remove overlapping firmware folder from rootfs
 sudo rm -rf /mnt/boot/firmware/*
+# % Mount /mnt/boot/firmware folder from bootfs
 sudo mount /dev/mapper/"${MountXZ}"p1 /mnt/boot/firmware
 
 # % Clean out old firmware, kernel and modules that don't support RPI 4
@@ -135,8 +143,8 @@ sudo rm -rf /mnt/boot/vmlinuz*
 sudo rm -rf /mnt/boot/System.map*
 
 # % After we've cleaned some files off the image run a e4defrag to optimize disk img
-sudo fstrim -av
-sudo e4defrag /mnt/*
+
+#sudo e4defrag /mnt/*
 
 # % Copy bootfiles folder
 sudo cp -rvf bootfiles/* /mnt/boot/firmware
@@ -157,11 +165,11 @@ sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/config-"${KERNEL_VERSION}"
   sudo ln -s initrd.img-"${KERNEL_VERSION}" initrd.img
 )
 # % Copy gpu firmware via start*.elf and fixup*.dat files
-sudo cp -vf firmware/boot/*.elf /mnt/boot/firmware
-sudo cp -vf firmware/boot/*.dat /mnt/boot/firmware
+sudo cp -rvf firmware/boot/*.elf /mnt/boot/firmware
+sudo cp -rvf firmware/boot/*.dat /mnt/boot/firmware
 
 # % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
-sudo rm /mnt/var/lib/initramfs-tools/*
+sudo rm -rf /mnt/var/lib/initramfs-tools/*
 sha1sum=$(sha1sum  /mnt/boot/initrd.img-${KERNEL_VERSION})
 echo "$sha1sum  /boot/vmlinuz-${KERNEL_VERSION}" | sudo -A tee -a /mnt/var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
 
@@ -207,12 +215,12 @@ sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
 # % Install new kernel modules
 sudo mkdir -p /mnt/run/systemd/resolve
 cat /run/systemd/resolve/stub-resolv.conf | sudo -A tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
-sudo touch /mnt/etc/modules-load.d/cups-filters.conf
+#sudo touch /mnt/etc/modules-load.d/cups-filters.conf
 
 # % Startup tweaks to fix bluetooth
 sudo rm /mnt/etc/rc.local
 cat << EOF | sudo tee /mnt/etc/rc.local
-#!/bin/sh -e
+#!/bin/bash
 #
 # rc.local
 #
@@ -248,31 +256,22 @@ ln -s /lib/firmware /etc/firmware
 add-apt-repository ppa:ubuntu-x-swat/updates -y
 
 # % Add Raspberry Pi Userland repository
-sudo add-apt-repository ppa:ubuntu-raspi2/ppa
+add-apt-repository ppa:ubuntu-raspi2/ppa -y
 
 # % Hold Ubuntu packages that will break booting from the Pi 4
 apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
 
 # % Remove linux-firmware-raspi2
-apt remove linux-firmware-raspi2 --allow-change-held-packages -y
+# % Remove ureadahead, does not support arm and makes our bootup unclean when checking systemd status
+apt remove linux-firmware-raspi2 ureadahead libnih1 --allow-change-held-packages -y
 
-# % Update all software to current from Ubuntu apt repositories
-apt update && apt dist-upgrade -y
-
+# % Install wireless tools and bluetooth
+# % Install Raspberry Pi userland utilities via libraspberrypi-bin (vcgencmd, etc.)
 # % INSTALL HAVAGED - prevents low entropy from making the Pi take a long time to start up.
-apt install haveged -y
-
-# % Install Bluetooth stack
-apt install bluez -y
-
-# % Install Wireless tools
-apt install wireless-tools iw rfkill -y
-
-# % Install Raspberry Pi userland utilities (vcgencmd, etc.)
-apt install libraspberrypi-bin -y
+# % Install raspi-config dependencies (libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils)
+apt update && apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils -y && apt dist-upgrade -y
 
 # % Install raspi-config utility
-apt install libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils -y
 wget https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191005_all.deb
 dpkg -i raspi-config_20191005_all.deb
 rm raspi-config_20191005_all.deb
@@ -294,9 +293,6 @@ groupadd i2c
 usermod -aG i2c ubuntu
 rm /etc/udev/rules.d/10-local_i2c_group.rules
 echo 'KERNEL=="i2c-[0-9]*", GROUP="i2c"' >> /etc/udev/rules.d/10-local_i2c_group.rules
-
-# % Remove ureadahead, does not support arm and makes our bootup unclean when checking systemd status
-apt remove ureadahead libnih1 -y
 
 # % Update initramfs
 update-initramfs -u
@@ -339,21 +335,23 @@ EOF
 
 # % Remove any crash files generated during chroot
 sudo rm /mnt/var/crash/*
+sudo rm /mnt/var/run/*
 
 cd ~
 
-# % Copy latest firmware to Ubuntu image
-sudo rm -rf firmware-nonfree/.git*
-sudo cp -ravf firmware-nonfree/* /mnt/lib/firmware
+# % Copy latest firmware-build to Ubuntu image
+sudo cp -ravf firmware-build/* /mnt/lib/firmware
 
-sudo fstrim -av
-sudo e4defrag /mnt/*
+sync
+
+#sudo fstrim -av
+#sudo e4defrag /mnt/*
 
 cd ~
-
-# UNMOUNT
 
 sleep 5
+
+# UNMOUNT
 
 sudo umount /mnt/boot/firmware
 sleep 5
@@ -361,8 +359,24 @@ sudo umount /mnt
 sleep 5
 
 # Run fsck on image
-sudo fsck.ext4 -f -p -v -c /dev/mapper/"${MountXZ}"p2
+sudo fsck.ext4 -pfv /dev/mapper/"${MountXZ}"p2
 sleep 5
+sudo fsck.fat -av /dev/mapper/"${MountXZ}"p1
+sleep 5
+
+sudo resize2fs /dev/mapper/"${MountXZ}"p2
+
+sync
+
+sudo zerofree -v /dev/mapper/"${MountXZ}"p2
+sleep 5
+
+sync
 
 # Save image
 sudo kpartx -dv ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
+
+sync
+
+# Clean up loops
+sudo losetup -d /dev/"${MountXZ}"
