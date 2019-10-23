@@ -93,8 +93,8 @@ if [ ! -d "rpi-linux" ]; then
   rm -f conform_config_jamesachambers.sh
 
   # % This pulls the latest config from the repository -- if building yourself/customizing comment out
-  rm .config
-  wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
+  #rm .config
+  #wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
 
   cd ~/rpi-linux
 
@@ -117,7 +117,7 @@ export KERNEL_BUILD_DIR=`realpath ./kernel-build`
 cd ~
 sudo rm -f ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
 xzcat ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz > ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
-MountXZ=$(sudo kpartx -av ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
+MountXZ=$(sudo kpartx -avs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
 MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
 MountXZ="${MountXZ%p1}"
 echo "Using loop $MountXZ"
