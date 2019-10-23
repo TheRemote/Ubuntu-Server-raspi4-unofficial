@@ -6,12 +6,13 @@ For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-serv
 <br>
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
-<strong>October 22nd 2019 - v13 Desktop Pre-Release</strong><br>
+<strong>October 23nd 2019 - v13 Desktop Pre-Release</strong><br>
 -raspi-config tool is now included with the image for (testing only, don't use on critical fully set up images).  You can use it to turn on i2c/spi/etc. File an issue if you find problems!<br>
 -vcgencmd tool (and other libraspberrypi-userland packages) are now included (older build, works for essentials such as vcgencmd measure_temp, vcgencmd get_config int, vcgencmd get_throttled, etc)<br>
 -Added 5Ghz WiFi band support (default regulatory domain US, change in /etc/default/crda if desired)<br>
 -Updated kernel to 4.19.80<br>
 -Fixed sound artifacts when playing YouTube/videos in browser<br>
+-Fixed fsck errors during resize2fs operations<br>
 <br>
 <strong>October 6th 2019 - v12 Desktop Pre-Release</strong><br>
 -Fixed Bluetooth not automatically attaching (now appears in both console and desktop mode)<br>
