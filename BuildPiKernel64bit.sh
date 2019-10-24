@@ -1,17 +1,75 @@
 #!/usr/bin/env bash
 
-# INSTALL DEPENDENCIES
-
-sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static zerofree systemd-container -y
-
-# PULL UBUNTU RASPBERRY PI 3 IMAGE
-
+# CONFIGURATION
+IMAGE_VERSION="14"
 TARGET_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img.xz"
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
 SOURCE_RELEASE="18.04.3"
 SOURCE_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
 SOURCE_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img"
+MountXZ=""
 
+# FUNCTIONS
+function MountIMG {
+  MountXZ=$(sudo kpartx -avs "$TARGET_IMG")
+  sync
+  MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
+  MountXZ="${MountXZ%p1}"
+  echo "Mounted $TARGET_IMG on loop $MountXZ"
+}
+
+function MountIMGPartitions {
+  # % Mount the image on /mnt (rootfs)
+  sudo mount /dev/mapper/"$MountXZ"p2 /mnt
+  # % Remove overlapping firmware folder from rootfs
+  sudo rm -rf /mnt/boot/firmware/*
+  # % Mount /mnt/boot/firmware folder from bootfs
+  sudo mount /dev/mapper/"$MountXZ"p1 /mnt/boot/firmware
+
+  sync
+  sleep 0.1
+}
+
+function UnmountIMGPartitions {
+  sync
+  sleep 0.1
+
+  echo "Unmounting /mnt/boot/firmware"
+  while mountpoint -q /mnt/boot/firmware && ! sudo umount /mnt/boot/firmware; do
+    sync
+    sleep 0.1
+  done
+
+  echo "Unmounting /mnt"
+  while mountpoint -q /mnt && ! sudo umount /mnt; do
+    sync
+    sleep 0.1
+  done
+
+  sync
+  sleep 0.1
+}
+
+function UnmountIMG {
+  sync
+  sleep 0.1
+
+  UnmountIMGPartitions
+
+  echo "Unmounting $TARGET_IMG"
+  sudo kpartx -dvs "$TARGET_IMG"
+
+  while [ -n "$(sudo losetup --list | grep /dev/$MountXZ)" ]; do
+    sync
+    sleep 0.1
+  done
+}
+
+# INSTALL DEPENDENCIES
+
+sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static zerofree systemd-container -y
+
+# PULL UBUNTU RASPBERRY PI 3 IMAGE
 if [ ! -f "$TARGET_IMG" ]; then
   sudo rm -f $TARGET_IMG
 fi
@@ -46,11 +104,11 @@ else
   cd ~
 
   cd "$TOOLCHAIN"
-  wget https://ftp.gnu.org/gnu/binutils/binutils-2.32.tar.bz2
-  tar -xf binutils-2.32.tar.bz2
-  mkdir binutils-2.32-build
-  cd binutils-2.32-build
-  ../binutils-2.32/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --disable-nls
+  wget https://ftp.gnu.org/gnu/binutils/binutils-2.33.1.tar.bz2
+  tar -xf binutils-2.*.tar.bz2
+  mkdir binutils-2.*-build
+  cd binutils-2.*-build
+  ../binutils-2.*/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --disable-nls
   make -j$(nproc)
   make install
 
@@ -104,55 +162,44 @@ if [ ! -d "rpi-linux" ]; then
   cd ~/rpi-linux
   PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- distclean bcm2711_defconfig
 
-  #wget https://raw.githubusercontent.com/sakaki-/bcmrpi3-kernel-bis/master/conform_config.sh
-  #chmod +x conform_config.sh
-  #./conform_config.sh
-  #rm -f conform_config.sh
-  #wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/conform_config_jamesachambers.sh
-  #chmod +x conform_config_jamesachambers.sh
-  #./conform_config_jamesachambers.sh
-  #rm -f conform_config_jamesachambers.sh
+  # % Run conform_config scripts which fix kernel flags to work correctly in arm64
+  wget https://raw.githubusercontent.com/sakaki-/bcmrpi3-kernel-bis/master/conform_config.sh
+  chmod +x conform_config.sh
+  ./conform_config.sh
+  rm -f conform_config.sh
+  wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/conform_config_jamesachambers.sh
+  chmod +x conform_config_jamesachambers.sh
+  ./conform_config_jamesachambers.sh
+  rm -f conform_config_jamesachambers.sh
 
   # % This pulls the latest config from the repository -- if building yourself/customizing comment out
   rm .config
   wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
 
-  cd ~/rpi-linux
-
-  # % If you want to change options, use the line below to enter the menuconfig kernel utility and configure your own kernel config flags
-  #PATH=$PATH:$TOOLCHAIN/bin make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  menuconfig
-
   # % Run prepare to register all our .config changes
-  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare
+  cd ~/rpi-linux
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu- prepare
 
   # % Prepare and build the rpi-linux source
-
-  #PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu-
-
   # % Create debian packages to make it easy to update the image
-  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-james KDEB_PKGVERSION=$(make kernelversion)-1 deb-pkg
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-james KDEB_PKGVERSION=v$IMAGE_VERSION Image modules dtbs deb-pkg
 
-  export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
-
-  # % Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
-  #PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) DEPMOD=echo MODLIB=./lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./lib/firmware modules_install
-  #sudo depmod --basedir . "${KERNEL_VERSION}"
+  # % Build kernel modules
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_install # INSTALL_MOD_PATH="/mnt/piroot"
 fi
+
+export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 
 
 # MOUNT IMAGE
 cd ~
-
-MountXZ=$(sudo kpartx -avs "$TARGET_IMG")
-MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
-MountXZ="${MountXZ%p1}"
-echo "Using loop $MountXZ"
+MountIMG
 
 # % Get the starting offset of the root partition
-PART_START=$(sudo parted /dev/"${MountXZ}" -ms unit s p | grep ":ext4" | cut -f 2 -d: | sed 's/[^0-9]//g')
+PART_START=$(sudo parted /dev/$MountXZ -ms unit s p | grep ":ext4" | cut -f 2 -d: | sed 's/[^0-9]//g')
 
 # % Perform fdisk to correct the partition table
-sudo fdisk /dev/"${MountXZ}" <<EOF
+sudo fdisk /dev/$MountXZ <<EOF
 p
 d
 2
@@ -166,50 +213,30 @@ w
 EOF
 
 # Close and unmount image then reopen it to get the new mapping
-sudo kpartx -dvs "$TARGET_IMG"
-sync
-sleep 5
-
-MountXZ=$(sudo kpartx -avs "$TARGET_IMG")
-MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
-MountXZ="${MountXZ%p1}"
-echo "Using loop $MountXZ"
+UnmountIMG
+MountIMG
 
 # Run fsck
 sudo e2fsck -fva /dev/mapper/"$MountXZ"p2
 sync
-sleep 5
+sleep 1
 
-sudo kpartx -dvs "$TARGET_IMG"
-sync
-sleep 5
-
-MountXZ=$(sudo kpartx -avs "$TARGET_IMG")
-MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
-MountXZ="${MountXZ%p1}"
-echo "Using loop $MountXZ"
+UnmountIMG
+MountIMG
 
 # Run resize2fs
-sudo resize2fs /dev/mapper/"${MountXZ}"p2
+sudo resize2fs /dev/mapper/"$MountXZ"p2
 sync
-sleep 5
+sleep 1
 
-sudo kpartx -dvs "$TARGET_IMG"
-sync
-sleep 5
-MountXZ=$(sudo kpartx -avs "$TARGET_IMG")
-MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
-MountXZ="${MountXZ%p1}"
-echo "Using loop $MountXZ"
+UnmountIMG
+MountIMG
 
-sudo zerofree -v /dev/mapper/"${MountXZ}"p2
+# % Zero out free space on drive to reduce compressed img size
+sudo zerofree -v /dev/mapper/"$MountXZ"p2
 
-# % Mount the image on /mnt (rootfs)
-sudo mount /dev/mapper/"${MountXZ}"p2 /mnt
-# % Remove overlapping firmware folder from rootfs
-sudo rm -rf /mnt/boot/firmware/*
-# % Mount /mnt/boot/firmware folder from bootfs
-sudo mount /dev/mapper/"${MountXZ}"p1 /mnt/boot/firmware
+# % Map the partitions of the IMG file so we can access the filesystem
+MountIMGPartitions
 
 # % Clean out old firmware, kernel and modules that don't support RPI 4
 sudo rm -rf /mnt/lib/firmware/4.15.0-1041-raspi2
@@ -313,8 +340,8 @@ arm_64bit=1
 EOF
 
 # % Copy overlays / image / firmware
-cp -rvf ~/rpi-linux/arch/arm64/boot/dts/broadcom/*.dtb ~/updates/rootfs/boot
-cp -rvf ~/rpi-linux/arch/arm64/boot/dts/overlays/*.dtb* ~/updates/bootfs/*
+cp -rvf ~/rpi-linux/arch/arm64/boot/dts/broadcom/*.dtb ~/updates/bootfs
+cp -rvf ~/rpi-linux/arch/arm64/boot/dts/overlays/*.dtb* ~/updates/bootfs/overlays
 cp -vf ~/rpi-linux/arch/arm64/boot/Image ~/updates/rootfs/boot
 cp -vf ~/vmlinuz ~/updates/rootfs/boot/vmlinuz-"${KERNEL_VERSION}"
 
@@ -339,9 +366,10 @@ sudo cp -rvf ~/updates/rootfs/* /mnt
 (
   cd /mnt/boot
   sudo ln -s vmlinuz-"${KERNEL_VERSION}" vmlinuz
-  sudo ln -s initrd.img-"${KERNEL_VERSION}" initrd.img
+  #sudo ln -s initrd.img-"${KERNEL_VERSION}" initrd.img
   sudo ln -s System.map-"${KERNEL_VERSION}" System.map
   sudo ln -s Module.symvers-"${KERNEL_VERSION}" Modules.symvers
+  cd ~
 )
 
 # % Create kernel header symlink
@@ -351,7 +379,7 @@ sudo cp -rvf ~/updates/rootfs/* /mnt
 
 # % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
 sudo rm -rf /mnt/var/lib/initramfs-tools/*
-sha1sum=$(sha1sum  /mnt/boot/initrd.img-${KERNEL_VERSION})
+sha1sum=$(sha1sum  /mnt/boot/vmlinuz-"${KERNEL_VERSION}")
 echo "$sha1sum  /boot/vmlinuz-${KERNEL_VERSION}" | sudo -A tee -a /mnt/var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
 
 # QUIRKS
@@ -427,7 +455,7 @@ ln -s /lib/firmware /etc/firmware
 #EOF
 
 # % Add updated mesa repository for video driver support
-add-apt-repository ppa:theremote/ppa-ubuntu-raspi4 -y
+#add-apt-repository ppa:theremote/ppa-ubuntu-raspi4 -y
 
 # % Add updated mesa repository for video driver support
 add-apt-repository ppa:ubuntu-x-swat/updates -y
@@ -515,39 +543,18 @@ EOF
 sudo rm /mnt/var/crash/*
 sudo rm /mnt/var/run/*
 
-cd ~
-
-sync
-
-cd ~
-
-sleep 5
-
 # UNMOUNT
-
-sudo umount /mnt/boot/firmware
-sleep 5
-sudo umount /mnt
-sleep 5
+UnmountIMGPartitions
 
 # Run fsck on image
-sudo fsck.ext4 -pfv /dev/mapper/"${MountXZ}"p2
-sleep 5
-sudo fsck.fat -av /dev/mapper/"${MountXZ}"p1
-sleep 5
+sudo fsck.ext4 -pfv /dev/mapper/"$MountXZ"p2
+sudo fsck.fat -av /dev/mapper/"$MountXZ"p1
 
-sync
-
-sudo zerofree -v /dev/mapper/"${MountXZ}"p2
-sleep 5
-
-sync
+sudo zerofree -v /dev/mapper/"$MountXZ"p2
 
 # Save image
-sudo kpartx -dvs "$TARGET_IMG"
-
-sync
+UnmountIMG
 
 # Clean up loops
-sudo losetup -d /dev/"${MountXZ}"
+#sudo losetup -d /dev/"${MountXZ}"
 
