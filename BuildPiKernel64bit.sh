@@ -4,14 +4,37 @@
 
 sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static zerofree systemd-container -y
 
-# PULL UBUNTU RASPBERRY PI 3 IMAGE (TODO grow rootfs by ~200MB, otherwise runs out of space)
+# PULL UBUNTU RASPBERRY PI 3 IMAGE
 
-FILE_IMG3="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
-if [ ! -f "$FILE_IMG3" ]; then
-  wget http://cdimage.ubuntu.com/ubuntu/releases/18.04.3/release/$FILE_IMG3
+TARGET_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img.xz"
+TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
+SOURCE_RELEASE="18.04.3"
+SOURCE_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
+SOURCE_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img"
+
+if [ ! -f "$TARGET_IMG" ]; then
+  sudo rm -f $TARGET_IMG
 fi
 
-# TOOLCHAIN
+if [ ! -f "$SOURCE_IMGXZ" ]; then
+  wget http://cdimage.ubuntu.com/ubuntu/releases/$SOURCE_RELEASE/release/$SOURCE_IMGXZ
+fi
+
+if [ ! -f "$SOURCE_IMG" ]; then
+  xzcat "$SOURCE_IMGXZ" > "$SOURCE_IMG"
+fi
+
+sudo rm -f "$TARGET_IMG"
+cp -vf "$SOURCE_IMG" "$TARGET_IMG"
+
+sync
+sleep 5
+
+# % Expands the image by approximately 300MB to help us not run out of space and encounter errors
+truncate -s +309715200 "$TARGET_IMG"
+sync
+
+# BUILD CROSS COMPILE TOOLCHAIN
 cd ~
 if [ -d "toolchains" ]; then
   cd toolchains/aarch64
@@ -28,7 +51,7 @@ else
   mkdir binutils-2.32-build
   cd binutils-2.32-build
   ../binutils-2.32/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --disable-nls
-  make -j4
+  make -j$(nproc)
   make install
 
   cd "$TOOLCHAIN"
@@ -37,15 +60,13 @@ else
   mkdir gcc-9.2.0-build
   cd gcc-9.2.0-build
   ../gcc-9.2.0/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --with-newlib --without-headers --disable-nls --disable-shared --disable-threads --disable-libssp --disable-decimal-float --disable-libquadmath --disable-libvtv --disable-libgomp --disable-libatomic --enable-languages=c
-  make all-gcc -j4
+  make all-gcc -j$(nproc)
   make install-gcc
 fi
 
 # GET FIRMWARE NON-FREE
-
 cd ~
 if [ ! -d "firmware-nonfree" ]; then
-  sudo rm -rf firmware-nonfree
   git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree --depth 1
 else
   cd firmware-nonfree
@@ -65,9 +86,10 @@ fi
 cd ~
 sudo rm -rf firmware-build
 mkdir firmware-build
-cp -rf ~/firmware-nonfree/* firmware-build
-cp -rf ~/firmware-raspbian/* firmware-build
-sudo rm -rf firmware-build/.git firmware-build/.github
+cp -rf ~/firmware-nonfree/* ~/firmware-build
+cp -rf ~/firmware-raspbian/* ~/firmware-build
+sudo rm -rf ~/firmware-build/.git 
+sudo rm -rf ~/firmware-build/.github
 
 # BUILD KERNEL
 
@@ -80,58 +102,56 @@ if [ ! -d "rpi-linux" ]; then
 
   # CONFIGURE / MAKE
   cd ~/rpi-linux
-  PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  bcm2711_defconfig
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- distclean bcm2711_defconfig
 
-  cd kernel-build
-  wget https://raw.githubusercontent.com/sakaki-/bcmrpi3-kernel-bis/master/conform_config.sh
-  chmod +x conform_config.sh
-  ./conform_config.sh
-  rm -f conform_config.sh
-  wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/conform_config_jamesachambers.sh
-  chmod +x conform_config_jamesachambers.sh
-  ./conform_config_jamesachambers.sh
-  rm -f conform_config_jamesachambers.sh
+  #wget https://raw.githubusercontent.com/sakaki-/bcmrpi3-kernel-bis/master/conform_config.sh
+  #chmod +x conform_config.sh
+  #./conform_config.sh
+  #rm -f conform_config.sh
+  #wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/conform_config_jamesachambers.sh
+  #chmod +x conform_config_jamesachambers.sh
+  #./conform_config_jamesachambers.sh
+  #rm -f conform_config_jamesachambers.sh
 
   # % This pulls the latest config from the repository -- if building yourself/customizing comment out
-  #rm .config
-  #wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
+  rm .config
+  wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
 
   cd ~/rpi-linux
 
   # % If you want to change options, use the line below to enter the menuconfig kernel utility and configure your own kernel config flags
-  #PATH=$PATH:$TOOLCHAIN/bin make O=./kernel-build/ ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  menuconfig
-else
-  cd ~/rpi-linux
-  git pull
-fi
+  #PATH=$PATH:$TOOLCHAIN/bin make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-  menuconfig
 
-PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu-
-export KERNEL_VERSION=`cat ./kernel-build/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
-# % Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
-PATH=$PATH:$TOOLCHAIN/bin make -j4 O=./kernel-build/ DEPMOD=echo MODLIB=./kernel-install/lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./kernel-install/lib/firmware modules_install
-depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
-export KERNEL_BUILD_DIR=`realpath ./kernel-build`
+  # % Run prepare to register all our .config changes
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare
+
+  # % Prepare and build the rpi-linux source
+
+  #PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu-
+
+  # % Create debian packages to make it easy to update the image
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-james KDEB_PKGVERSION=$(make kernelversion)-1 deb-pkg
+
+  export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
+
+  # % Creates /lib/modules/${KERNEL_VERSION} that we will install into our Ubuntu image so our custom kernel has all the modules needed available
+  #PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) DEPMOD=echo MODLIB=./lib/modules/${KERNEL_VERSION} INSTALL_FW_PATH=./lib/firmware modules_install
+  #sudo depmod --basedir . "${KERNEL_VERSION}"
+fi
 
 
 # MOUNT IMAGE
 cd ~
-sudo rm -f ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
-xzcat ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz > ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
 
-sleep 2
-
-truncate -s +309715200 ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
-
-sleep 2
-
-MountXZ=$(sudo kpartx -avs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
+MountXZ=$(sudo kpartx -avs "$TARGET_IMG")
 MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
 MountXZ="${MountXZ%p1}"
 echo "Using loop $MountXZ"
 
-# Get the starting offset of the root partition
+# % Get the starting offset of the root partition
 PART_START=$(sudo parted /dev/"${MountXZ}" -ms unit s p | grep ":ext4" | cut -f 2 -d: | sed 's/[^0-9]//g')
 
+# % Perform fdisk to correct the partition table
 sudo fdisk /dev/"${MountXZ}" <<EOF
 p
 d
@@ -146,9 +166,11 @@ w
 EOF
 
 # Close and unmount image then reopen it to get the new mapping
-sudo kpartx -dvs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
-sleep 2
-MountXZ=$(sudo kpartx -avs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
+sudo kpartx -dvs "$TARGET_IMG"
+sync
+sleep 5
+
+MountXZ=$(sudo kpartx -avs "$TARGET_IMG")
 MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
 MountXZ="${MountXZ%p1}"
 echo "Using loop $MountXZ"
@@ -156,12 +178,13 @@ echo "Using loop $MountXZ"
 # Run fsck
 sudo e2fsck -fva /dev/mapper/"$MountXZ"p2
 sync
-sleep 2
+sleep 5
 
-sudo kpartx -dvs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
+sudo kpartx -dvs "$TARGET_IMG"
 sync
-sleep 2
-MountXZ=$(sudo kpartx -avs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
+sleep 5
+
+MountXZ=$(sudo kpartx -avs "$TARGET_IMG")
 MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
 MountXZ="${MountXZ%p1}"
 echo "Using loop $MountXZ"
@@ -169,11 +192,12 @@ echo "Using loop $MountXZ"
 # Run resize2fs
 sudo resize2fs /dev/mapper/"${MountXZ}"p2
 sync
-sleep 2
+sleep 5
 
-sudo kpartx -dvs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
-sleep 2
-MountXZ=$(sudo kpartx -avs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img)
+sudo kpartx -dvs "$TARGET_IMG"
+sync
+sleep 5
+MountXZ=$(sudo kpartx -avs "$TARGET_IMG")
 MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
 MountXZ="${MountXZ%p1}"
 echo "Using loop $MountXZ"
@@ -198,53 +222,141 @@ sudo rm -rf /mnt/boot/config*
 sudo rm -rf /mnt/boot/vmlinuz*
 sudo rm -rf /mnt/boot/System.map*
 
-# % After we've cleaned some files off the image run a e4defrag to optimize disk img
+sync
+sleep 2
 
-#sudo e4defrag /mnt/*
+# CREATE FILES FOR UPDATER
+cd ~
+sudo rm -rf ~/updates
+mkdir ~/updates
+mkdir ~/updates/bootfs
+mkdir ~/updates/bootfs/overlays
+mkdir ~/updates/rootfs
+mkdir ~/updates/rootfs/boot
+mkdir ~/updates/rootfs/lib
+mkdir ~/updates/rootfs/lib/firmware
+mkdir ~/updates/rootfs/lib/modules
+cp -rvf ~/firmware-build/* ~/updates/rootfs/lib/firmware
+cp -rvf ~/rpi-linux/lib/modules/* ~/updates/rootfs/lib/modules
 
-# % Copy bootfiles folder
-sudo cp -rvf bootfiles/* /mnt/boot/firmware
+sync
+sleep 2
 
-# % Copy newly compiled kernel, stubs, overlays, etc to Ubuntu image
-sudo mkdir /mnt/boot/firmware/overlays
-sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/dts/broadcom/*.dtb /mnt/boot/firmware
-sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/dts/overlays/*.dtb* /mnt/boot/firmware/overlays
-sudo cp -vf rpi-linux/kernel-build/arch/arm64/boot/Image /mnt/boot/firmware/kernel8.img
-sudo cp -vf rpi-linux/kernel-build/vmlinux /mnt/boot/vmlinuz-"${KERNEL_VERSION}"
-sudo cp -vf rpi-linux/kernel-build/System.map /mnt/boot/System.map-"${KERNEL_VERSION}"
-sudo cp -vf rpi-linux/kernel-build/.config /mnt/boot/config-"${KERNEL_VERSION}"
+# % Create cmdline.txt
+sudo rm -f ~/updates/bootfs/cmdline.txt
+cat << EOF | tee ~/updates/bootfs/cmdline.txt
+snd_bcm2835.enable_headphones=1 snd_bcm2835.enable_hdmi=1 snd_bcm2835.enable_compat_alsa=0 dwc_otg.fiq_fix_enable=2 console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 fsck.repair=yes fsck.mode=force rootwait
+EOF
+
+# % Create config.txt
+sudo rm -f ~/updates/bootfs/config.txt
+cat << EOF | tee ~/updates/bootfs/config.txt
+# uncomment if you get no picture on HDMI for a default "safe" mode
+#hdmi_safe=1
+
+# uncomment this if your display has a black border of unused pixels visible
+# and your display can output without overscan
+disable_overscan=1
+
+# uncomment the following to adjust overscan. Use positive numbers if console
+# goes off screen, and negative if there is too much border
+#overscan_left=16
+#overscan_right=16
+#overscan_top=16
+#overscan_bottom=16
+
+# uncomment to force a console size. By default it will be display's size minus
+# overscan.
+#framebuffer_width=1280
+#framebuffer_height=720
+
+# uncomment if hdmi display is not detected and composite is being output
+#hdmi_force_hotplug=1
+
+# uncomment to force a specific HDMI mode (this will force VGA)
+#hdmi_group=1
+#hdmi_mode=1
+
+# uncomment to force a HDMI mode rather than DVI. This can make audio work in
+# DMT (computer monitor) modes
+#hdmi_drive=2
+
+# uncomment to increase signal to HDMI, if you have interference, blanking, or
+# no display
+#config_hdmi_boost=4
+
+# uncomment for composite PAL
+#sdtv_mode=2
+
+#uncomment to overclock the arm. 700 MHz is the default.
+#arm_freq=800
+
+# Uncomment some or all of these to enable the optional hardware interfaces
+#dtparam=i2c_arm=on
+#dtparam=i2s=on
+#dtparam=spi=on
+
+# Uncomment this to enable infrared communication.
+#dtoverlay=gpio-ir,gpio_pin=17
+#dtoverlay=gpio-ir-tx,gpio_pin=18
+
+# Enable audio (loads snd_bcm2835)
+dtparam=audio=on
+
+[pi4]
+dtoverlay=vc4-fkms-v3d
+max_framebuffers=2
+arm_64bit=1
+
+[all]
+#dtoverlay=vc4-fkms-v3d
+EOF
+
+# % Copy overlays / image / firmware
+cp -rvf ~/rpi-linux/arch/arm64/boot/dts/broadcom/*.dtb ~/updates/rootfs/boot
+cp -rvf ~/rpi-linux/arch/arm64/boot/dts/overlays/*.dtb* ~/updates/bootfs/*
+cp -vf ~/rpi-linux/arch/arm64/boot/Image ~/updates/rootfs/boot
+cp -vf ~/vmlinuz ~/updates/rootfs/boot/vmlinuz-"${KERNEL_VERSION}"
+
+# % Copy the new kernel modules
+mkdir ~/updates/rootfs/lib/modules/${KERNEL_VERSION}
+cp -ravf rpi-linux/kernel-install/* ~/updates/rootfs
+
+# % Copy gpu firmware via start*.elf and fixup*.dat files
+cp -rvf ~/firmware/boot/*.elf ~/updates/bootfs
+cp -rvf ~/firmware/boot/*.dat ~/updates/bootfs
+
+# % Copy kernel System.map and .config files
+#cp -vf ~/rpi-linux/System.map ~/updates/bootfs/System.map-"${KERNEL_VERSION}"
+#cp -vf ~/rpi-linux/.config ~/updates/bootfs/config-"${KERNEL_VERSION}"
+cp -vf ~/rpi-linux/arch/arm64/boot/Image ~/updates/bootfs/kernel8.img
+
+# % Copy bootfs and rootfs
+sudo cp -rvf ~/updates/bootfs/* /mnt/boot/firmware
+sudo cp -rvf ~/updates/rootfs/* /mnt
 
 # % Create symlinks to our custom kernel -- this allows initramfs to find our kernel and update modules successfully
 (
   cd /mnt/boot
   sudo ln -s vmlinuz-"${KERNEL_VERSION}" vmlinuz
   sudo ln -s initrd.img-"${KERNEL_VERSION}" initrd.img
+  sudo ln -s System.map-"${KERNEL_VERSION}" System.map
+  sudo ln -s Module.symvers-"${KERNEL_VERSION}" Modules.symvers
 )
-# % Copy gpu firmware via start*.elf and fixup*.dat files
-sudo cp -rvf firmware/boot/*.elf /mnt/boot/firmware
-sudo cp -rvf firmware/boot/*.dat /mnt/boot/firmware
+
+# % Create kernel header symlink
+#cd /mnt
+#sudo rm lib/modules/${KERNEL_VERSION}/build
+#sudo ln -s usr/src/linux-headers-${KERNEL_VERSION} lib/modules/${KERNEL_VERSION}/build
 
 # % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
 sudo rm -rf /mnt/var/lib/initramfs-tools/*
 sha1sum=$(sha1sum  /mnt/boot/initrd.img-${KERNEL_VERSION})
 echo "$sha1sum  /boot/vmlinuz-${KERNEL_VERSION}" | sudo -A tee -a /mnt/var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
 
-# % Copy the new kernel modules to the Ubuntu image
-sudo mkdir /mnt/lib/modules/${KERNEL_VERSION}
-sudo cp -ravf rpi-linux/kernel-build/kernel-install/* /mnt
-
-# % Copy System.map, kernel .config and Module.symvers to Ubuntu image
-sudo mkdir -p /mnt/usr/src/linux-headers-${KERNEL_VERSION}/
-sudo cp -vf rpi-linux/kernel-build/System.map /mnt/usr/src/linux-headers-${KERNEL_VERSION}/System.map
-sudo cp -vf rpi-linux/kernel-build/Module.symvers /mnt/usr/src/linux-headers-${KERNEL_VERSION}/Module.symvers
-sudo cp -vf rpi-linux/kernel-build/.config /mnt/usr/src/linux-headers-${KERNEL_VERSION}/config
-
-# % Create kernel header symlink
-cd /mnt
-sudo rm lib/modules/${KERNEL_VERSION}/build
-sudo ln -s usr/src/linux-headers-${KERNEL_VERSION} lib/modules/${KERNEL_VERSION}/build
-
 # QUIRKS
+
+cd ~
 
 # % Fix WiFi
 # % The Pi 4 version returns boardflags3=0x44200100
@@ -308,6 +420,15 @@ chown -R root /lib
 # % Add symbolic link from /etc/firmware to /lib/firmware (fixes Bluetooth)
 ln -s /lib/firmware /etc/firmware
 
+#xargs -I % sudo add-apt-repository -y % << EOF
+#  ppa:ubuntu-x-swat/updates
+#  ppa:ubuntu-raspi2/ppa
+#  ppa-ubuntu-raspi4
+#EOF
+
+# % Add updated mesa repository for video driver support
+add-apt-repository ppa:theremote/ppa-ubuntu-raspi4 -y
+
 # % Add updated mesa repository for video driver support
 add-apt-repository ppa:ubuntu-x-swat/updates -y
 
@@ -343,12 +464,6 @@ sed -i "s:dtparam i2c_arm=$SETTING:dtparam -d /boot/firmware/overlays i2c_arm=$S
 sed -i "s:dtparam spi=$SETTING:dtparam -d /boot/firmware/overlays spi=$SETTING:g" /usr/bin/raspi-config
 sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-pre
 sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-post
-
-# % Add group and udev rule for i2c so it works for non-root Ubuntu user
-groupadd i2c
-usermod -aG i2c ubuntu
-rm /etc/udev/rules.d/10-local_i2c_group.rules
-echo 'KERNEL=="i2c-[0-9]*", GROUP="i2c"' >> /etc/udev/rules.d/10-local_i2c_group.rules
 
 # % Update initramfs
 update-initramfs -u
@@ -402,9 +517,6 @@ sudo rm /mnt/var/run/*
 
 cd ~
 
-# % Copy latest firmware-build to Ubuntu image
-sudo cp -ravf firmware-build/* /mnt/lib/firmware
-
 sync
 
 cd ~
@@ -432,7 +544,7 @@ sleep 5
 sync
 
 # Save image
-sudo kpartx -dvs ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img
+sudo kpartx -dvs "$TARGET_IMG"
 
 sync
 

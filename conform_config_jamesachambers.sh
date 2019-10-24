@@ -32,6 +32,7 @@ set_kernel_config CONFIG_CEPH_FS m
 set_kernel_config CONFIG_CEPH_FS_POSIX_ACL y
 set_kernel_config CONFIG_CEPH_LIB m
 set_kernel_config CONFIG_CEPH_LIB_USE_DNS_RESOLVER y
+set_kernel_config CONFIG_CEPH_LIB_PRETTYDEBUG y
 set_kernel_config CONFIG_FSCACHE m
 set_kernel_config CONFIG_FSCACHE_STATS y
 set_kernel_config CONFIG_LIBCRC32C m
@@ -47,3 +48,14 @@ set_kernel_config CONFIG_BPF_STREAM_PARSER y
 # XDP sockets
 set_kernel_config CONFIG_XDP_SOCKETS y
 
+# NFTables settings
+set_kernel_config CONFIG_NF_TABLES_INET y
+set_kernel_config CONFIG_NF_TABLES_NETDEV y
+set_kernel_config CONFIG_NF_TABLES_ARP y
+set_kernel_config CONFIG_NF_TABLES_BRIDGE y
+
+# Enable ARM kernel workarounds
+set_kernel_config CONFIG_ARM64_ERRATUM_834220 y
+
+# LIRC Mode
+set_kernel_config CONFIG_BPF_LIRC_MODE2 y
