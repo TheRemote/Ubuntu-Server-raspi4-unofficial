@@ -8,6 +8,7 @@ SOURCE_RELEASE="18.04.3"
 SOURCE_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
 SOURCE_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img"
 MountXZ=""
+export KERNEL_VERSION="4.19.80-v8-james"
 
 # FUNCTIONS
 function MountIMG {
@@ -20,11 +21,11 @@ function MountIMG {
 
 function MountIMGPartitions {
   # % Mount the image on /mnt (rootfs)
-  sudo mount /dev/mapper/"$MountXZ"p2 /mnt
+  sudo mount /dev/mapper/"${MountXZ}"p2 /mnt
   # % Remove overlapping firmware folder from rootfs
   sudo rm -rf /mnt/boot/firmware/*
   # % Mount /mnt/boot/firmware folder from bootfs
-  sudo mount /dev/mapper/"$MountXZ"p1 /mnt/boot/firmware
+  sudo mount /dev/mapper/"{$MountXZ}"p1 /mnt/boot/firmware
 
   sync
   sleep 0.1
@@ -65,9 +66,9 @@ function UnmountIMG {
   done
 }
 
-# INSTALL DEPENDENCIES
 
-sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static zerofree systemd-container -y
+# INSTALL DEPENDENCIES
+sudo apt-get install build-essential git libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static zerofree systemd-container -y
 
 # PULL UBUNTU RASPBERRY PI 3 IMAGE
 if [ ! -f "$TARGET_IMG" ]; then
@@ -104,11 +105,11 @@ else
   cd ~
 
   cd "$TOOLCHAIN"
-  wget https://ftp.gnu.org/gnu/binutils/binutils-2.33.1.tar.bz2
-  tar -xf binutils-2.*.tar.bz2
-  mkdir binutils-2.*-build
-  cd binutils-2.*-build
-  ../binutils-2.*/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --disable-nls
+  wget https://ftp.gnu.org/gnu/binutils/binutils-2.32.tar.bz2
+  tar -xf binutils-2.32.tar.bz2
+  mkdir binutils-2.32-build
+  cd binutils-2.32-build
+  ../binutils-2.32/configure --prefix="$TOOLCHAIN" --target=aarch64-linux-gnu --disable-nls
   make -j$(nproc)
   make install
 
@@ -144,8 +145,8 @@ fi
 cd ~
 sudo rm -rf firmware-build
 mkdir firmware-build
-cp -rf ~/firmware-nonfree/* ~/firmware-build
-cp -rf ~/firmware-raspbian/* ~/firmware-build
+cp -raf ~/firmware-nonfree/* ~/firmware-build
+cp -raf ~/firmware-raspbian/* ~/firmware-build
 sudo rm -rf ~/firmware-build/.git 
 sudo rm -rf ~/firmware-build/.github
 
@@ -155,12 +156,12 @@ sudo rm -rf ~/firmware-build/.github
 cd ~
 if [ ! -d "rpi-linux" ]; then
   git clone https://github.com/raspberrypi/linux.git rpi-linux --single-branch --branch rpi-4.19.y --depth 1
-  cd rpi-linux
+  cd ~/rpi-linux
   git checkout origin/rpi-4.19.y
 
   # CONFIGURE / MAKE
   cd ~/rpi-linux
-  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- distclean bcm2711_defconfig
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
 
   # % Run conform_config scripts which fix kernel flags to work correctly in arm64
   wget https://raw.githubusercontent.com/sakaki-/bcmrpi3-kernel-bis/master/conform_config.sh
@@ -178,17 +179,19 @@ if [ ! -d "rpi-linux" ]; then
 
   # % Run prepare to register all our .config changes
   cd ~/rpi-linux
-  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu- prepare
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare
 
   # % Prepare and build the rpi-linux source
   # % Create debian packages to make it easy to update the image
-  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-james KDEB_PKGVERSION=v$IMAGE_VERSION Image modules dtbs deb-pkg
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-james KDEB_PKGVERSION=v"${IMAGE_VERSION}" deb-pkg
 
   # % Build kernel modules
-  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_install # INSTALL_MOD_PATH="/mnt/piroot"
+  #export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
+  #sudo depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
 fi
 
-export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
+#export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 
 
 # MOUNT IMAGE
@@ -217,7 +220,7 @@ UnmountIMG
 MountIMG
 
 # Run fsck
-sudo e2fsck -fva /dev/mapper/"$MountXZ"p2
+sudo e2fsck -fva /dev/mapper/"${MountXZ}"p2
 sync
 sleep 1
 
@@ -225,7 +228,7 @@ UnmountIMG
 MountIMG
 
 # Run resize2fs
-sudo resize2fs /dev/mapper/"$MountXZ"p2
+sudo resize2fs /dev/mapper/"${MountXZ}"p2
 sync
 sleep 1
 
@@ -233,7 +236,7 @@ UnmountIMG
 MountIMG
 
 # % Zero out free space on drive to reduce compressed img size
-sudo zerofree -v /dev/mapper/"$MountXZ"p2
+sudo zerofree -v /dev/mapper/"${MountXZ}"p2
 
 # % Map the partitions of the IMG file so we can access the filesystem
 MountIMGPartitions
@@ -244,7 +247,7 @@ sudo rm -rf /mnt/boot/firmware/*
 sudo rm -rf /mnt/usr/src/*
 sudo rm -rf /mnt/lib/modules/*
 
-sudo rm -rf /mnt/boot/initrd*
+#sudo rm -rf /mnt/boot/initrd*
 sudo rm -rf /mnt/boot/config*
 sudo rm -rf /mnt/boot/vmlinuz*
 sudo rm -rf /mnt/boot/System.map*
@@ -255,16 +258,12 @@ sleep 2
 # CREATE FILES FOR UPDATER
 cd ~
 sudo rm -rf ~/updates
-mkdir ~/updates
-mkdir ~/updates/bootfs
-mkdir ~/updates/bootfs/overlays
-mkdir ~/updates/rootfs
-mkdir ~/updates/rootfs/boot
-mkdir ~/updates/rootfs/lib
-mkdir ~/updates/rootfs/lib/firmware
-mkdir ~/updates/rootfs/lib/modules
-cp -rvf ~/firmware-build/* ~/updates/rootfs/lib/firmware
-cp -rvf ~/rpi-linux/lib/modules/* ~/updates/rootfs/lib/modules
+mkdir -p ~/updates/bootfs/overlays
+mkdir -p ~/updates/rootfs/boot
+mkdir -p ~/updates/rootfs/lib/firmware
+mkdir -p ~/updates/rootfs/lib/modules/${KERNEL_VERSION}
+cp -raf ~/firmware-build/* ~/updates/rootfs/lib/firmware
+cp -raf ~/rpi-linux/lib/modules/* ~/updates/rootfs/lib/modules
 
 sync
 sleep 2
@@ -340,14 +339,14 @@ arm_64bit=1
 EOF
 
 # % Copy overlays / image / firmware
-cp -rvf ~/rpi-linux/arch/arm64/boot/dts/broadcom/*.dtb ~/updates/bootfs
-cp -rvf ~/rpi-linux/arch/arm64/boot/dts/overlays/*.dtb* ~/updates/bootfs/overlays
-cp -vf ~/rpi-linux/arch/arm64/boot/Image ~/updates/rootfs/boot
-cp -vf ~/vmlinuz ~/updates/rootfs/boot/vmlinuz-"${KERNEL_VERSION}"
+cp -raf ~/rpi-linux/arch/arm64/boot/dts/broadcom/*.dtb ~/updates/bootfs
+cp -raf ~/rpi-linux/arch/arm64/boot/dts/overlays/*.dtb* ~/updates/bootfs/overlays
+cp -raf ~/rpi-linux/arch/arm64/boot/Image ~/updates/rootfs/boot/kernel8.img
+cp -raf ~/rpi-linux/arch/arm64/boot/Image ~/updates/rootfs/boot/vmlinuz-"${KERNEL_VERSION}"
 
 # % Copy the new kernel modules
-mkdir ~/updates/rootfs/lib/modules/${KERNEL_VERSION}
-cp -ravf rpi-linux/kernel-install/* ~/updates/rootfs
+mkdir -p ~/updates/rootfs/lib/modules/"${KERNEL_VERSION}"
+cp -ravf ~/rpi-linux/kernel-build/kernel-install/* ~/updates/rootfs
 
 # % Copy gpu firmware via start*.elf and fixup*.dat files
 cp -rvf ~/firmware/boot/*.elf ~/updates/bootfs
@@ -359,8 +358,8 @@ cp -rvf ~/firmware/boot/*.dat ~/updates/bootfs
 cp -vf ~/rpi-linux/arch/arm64/boot/Image ~/updates/bootfs/kernel8.img
 
 # % Copy bootfs and rootfs
-sudo cp -rvf ~/updates/bootfs/* /mnt/boot/firmware
-sudo cp -rvf ~/updates/rootfs/* /mnt
+sudo cp -raf ~/updates/bootfs/* /mnt/boot/firmware
+sudo cp -raf ~/updates/rootfs/* /mnt
 
 # % Create symlinks to our custom kernel -- this allows initramfs to find our kernel and update modules successfully
 (
@@ -379,17 +378,12 @@ sudo cp -rvf ~/updates/rootfs/* /mnt
 
 # % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
 sudo rm -rf /mnt/var/lib/initramfs-tools/*
-sha1sum=$(sha1sum  /mnt/boot/vmlinuz-"${KERNEL_VERSION}")
+sha1sum=$(sha1sum  /mnt/boot/vmlinuz)
 echo "$sha1sum  /boot/vmlinuz-${KERNEL_VERSION}" | sudo -A tee -a /mnt/var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
 
 # QUIRKS
 
 cd ~
-
-# % Fix WiFi
-# % The Pi 4 version returns boardflags3=0x44200100
-# % The Pi 3 version returns boardflags3=0x48200100cd
-sudo sed -i "s:0x48200100:0x44200100:g" ~/firmware-build/brcm/brcmfmac43455-sdio.txt
 
 # % Remove flash-kernel hooks to prevent firmware updater from overriding our custom firmware
 sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
@@ -414,7 +408,7 @@ cat /run/systemd/resolve/stub-resolv.conf | sudo -A tee /mnt/run/systemd/resolve
 #sudo touch /mnt/etc/modules-load.d/cups-filters.conf
 
 # % Startup tweaks to fix bluetooth
-sudo rm /mnt/etc/rc.local
+sudo rm -f /mnt/etc/rc.local
 cat << EOF | sudo tee /mnt/etc/rc.local
 #!/bin/bash
 #
@@ -451,7 +445,7 @@ ln -s /lib/firmware /etc/firmware
 #xargs -I % sudo add-apt-repository -y % << EOF
 #  ppa:ubuntu-x-swat/updates
 #  ppa:ubuntu-raspi2/ppa
-#  ppa-ubuntu-raspi4
+#  ppa:theremote/ppa-ubuntu-raspi4
 #EOF
 
 # % Add updated mesa repository for video driver support
@@ -502,7 +496,7 @@ apt autoremove -y && apt clean && apt autoclean
 EOF
 
 # % Set regulatory crda to enable 5 Ghz wireless
-sudo rm /mnt/etc/default/crda
+sudo rm -f /mnt/etc/default/crda
 cat << EOF | sudo tee /mnt/etc/default/crda
 # Set REGDOMAIN to a ISO/IEC 3166-1 alpha2 country code so that iw(8) may set
 # the initial regulatory domain setting for IEEE 802.11 devices which operate
@@ -518,7 +512,7 @@ REGDOMAIN=US
 EOF
 
 # % Set loopback address in hosts to prevent slow bootup
-sudo rm /mnt/etc/hosts
+sudo rm -f /mnt/etc/hosts
 cat << EOF | sudo tee /mnt/etc/hosts
 127.0.0.1 localhost
 127.0.1.1 ubuntu
@@ -533,28 +527,29 @@ ff02::3 ip6-allhosts
 EOF
 
 # % Update fstab to allow fsck to run on rootfs
-sudo rm /mnt/etc/fstab
+sudo rm -f /mnt/etc/fstab
 cat << EOF | sudo tee /mnt/etc/fstab
 LABEL=writable	/	 ext4	defaults	0 1
 LABEL=system-boot       /boot/firmware  vfat    defaults        0       1
 EOF
 
 # % Remove any crash files generated during chroot
-sudo rm /mnt/var/crash/*
-sudo rm /mnt/var/run/*
+sudo rm -rf /mnt/var/crash/*
+sudo rm -rf /mnt/var/run/*
 
 # UNMOUNT
 UnmountIMGPartitions
 
 # Run fsck on image
-sudo fsck.ext4 -pfv /dev/mapper/"$MountXZ"p2
-sudo fsck.fat -av /dev/mapper/"$MountXZ"p1
+sudo fsck.ext4 -pfv /dev/mapper/"${MountXZ}"p2
+sudo fsck.fat -av /dev/mapper/"${MountXZ}"p1
 
-sudo zerofree -v /dev/mapper/"$MountXZ"p2
+sudo zerofree -v /dev/mapper/"${MountXZ}"p2
 
 # Save image
 UnmountIMG
 
-# Clean up loops
-#sudo losetup -d /dev/"${MountXZ}"
+# Clean up build directory
+#sudo rm -rf updates firmware-build tmp
+echo "Build completed"
 
