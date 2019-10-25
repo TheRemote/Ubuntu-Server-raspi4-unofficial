@@ -7,6 +7,7 @@ TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
 SOURCE_RELEASE="18.04.3"
 SOURCE_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
 SOURCE_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img"
+RASPBIAN_IMG="2019-09-26-raspbian-buster-lite.img"
 MountXZ=""
 export KERNEL_VERSION="4.19.80-v8-james"
 
@@ -22,11 +23,13 @@ function MountIMG {
 function MountIMGPartitions {
   # % Mount the image on /mnt (rootfs)
   sudo mount /dev/mapper/"${MountXZ}"p2 /mnt
-  # % Remove overlapping firmware folder from rootfs
-  sudo rm -rf /mnt/boot/firmware/*
-  # % Mount /mnt/boot/firmware folder from bootfs
-  sudo mount /dev/mapper/"{$MountXZ}"p1 /mnt/boot/firmware
 
+  # % Remove overlapping firmware folder from rootfs
+  sudo rm -rf /mnt/boot/firmware
+  sudo mkdir /mnt/boot/firmware
+
+  # % Mount /mnt/boot/firmware folder from bootfs
+  sudo mount /dev/mapper/"${MountXZ}"p1 /mnt/boot/firmware
   sync
   sleep 0.1
 }
@@ -60,7 +63,7 @@ function UnmountIMG {
   echo "Unmounting $TARGET_IMG"
   sudo kpartx -dvs "$TARGET_IMG"
 
-  while [ -n "$(sudo losetup --list | grep /dev/$MountXZ)" ]; do
+  while [ -n "$(sudo losetup --list | grep /dev/${MountXZ})" ]; do
     sync
     sleep 0.1
   done
@@ -68,7 +71,7 @@ function UnmountIMG {
 
 
 # INSTALL DEPENDENCIES
-sudo apt-get install build-essential git libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static zerofree systemd-container -y
+sudo apt-get install build-essential git curl unzip libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static zerofree systemd-container -y
 
 # PULL UBUNTU RASPBERRY PI 3 IMAGE
 if [ ! -f "$TARGET_IMG" ]; then
@@ -77,6 +80,12 @@ fi
 
 if [ ! -f "$SOURCE_IMGXZ" ]; then
   wget http://cdimage.ubuntu.com/ubuntu/releases/$SOURCE_RELEASE/release/$SOURCE_IMGXZ
+fi
+
+if [ ! -f "$RASPBIAN_IMG" ]; then
+  curl -O -J -L https://downloads.raspberrypi.org/raspbian_lite_latest
+  unzip raspbian_lite_latest
+  rm -f raspbian_lite_latest
 fi
 
 if [ ! -f "$SOURCE_IMG" ]; then
@@ -145,22 +154,21 @@ fi
 cd ~
 sudo rm -rf firmware-build
 mkdir firmware-build
-cp -raf ~/firmware-nonfree/* ~/firmware-build
-cp -raf ~/firmware-raspbian/* ~/firmware-build
+cp --recursive --update --archive --no-preserve=ownership ~/firmware-nonfree/* ~/firmware-build
+cp --recursive --update --archive --no-preserve=ownership ~/firmware-raspbian/* ~/firmware-build
 sudo rm -rf ~/firmware-build/.git 
 sudo rm -rf ~/firmware-build/.github
+sudo chown -R root:root ~/firmware-build 
 
 # BUILD KERNEL
-
-# % Check out the 4.19.y kernel branch -- if building and future versions are available you can update which branch is checked out here
 cd ~
 if [ ! -d "rpi-linux" ]; then
+  # % Check out the 4.19.y kernel branch -- if building and future versions are available you can update which branch is checked out here
   git clone https://github.com/raspberrypi/linux.git rpi-linux --single-branch --branch rpi-4.19.y --depth 1
   cd ~/rpi-linux
   git checkout origin/rpi-4.19.y
 
   # CONFIGURE / MAKE
-  cd ~/rpi-linux
   PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
 
   # % Run conform_config scripts which fix kernel flags to work correctly in arm64
@@ -183,12 +191,12 @@ if [ ! -d "rpi-linux" ]; then
 
   # % Prepare and build the rpi-linux source
   # % Create debian packages to make it easy to update the image
-  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-james KDEB_PKGVERSION=v"${IMAGE_VERSION}" deb-pkg
-
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-james KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
+  
   # % Build kernel modules
   #export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
-  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
-  #sudo depmod --basedir ./kernel-build/kernel-install "${KERNEL_VERSION}"
+  make -j$(nproc) DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
+  depmod --basedir . "${KERNEL_VERSION}"
 fi
 
 #export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
@@ -199,10 +207,10 @@ cd ~
 MountIMG
 
 # % Get the starting offset of the root partition
-PART_START=$(sudo parted /dev/$MountXZ -ms unit s p | grep ":ext4" | cut -f 2 -d: | sed 's/[^0-9]//g')
+PART_START=$(sudo parted /dev/"${MountXZ}" -ms unit s p | grep ":ext4" | cut -f 2 -d: | sed 's/[^0-9]//g')
 
 # % Perform fdisk to correct the partition table
-sudo fdisk /dev/$MountXZ <<EOF
+sudo fdisk /dev/"${MountXZ}" <<EOF
 p
 d
 2
@@ -237,6 +245,8 @@ MountIMG
 
 # % Zero out free space on drive to reduce compressed img size
 sudo zerofree -v /dev/mapper/"${MountXZ}"p2
+sync
+sleep 1
 
 # % Map the partitions of the IMG file so we can access the filesystem
 MountIMGPartitions
@@ -247,9 +257,9 @@ sudo rm -rf /mnt/boot/firmware/*
 sudo rm -rf /mnt/usr/src/*
 sudo rm -rf /mnt/lib/modules/*
 
-#sudo rm -rf /mnt/boot/initrd*
+sudo rm -rf /mnt/boot/initrd*
 sudo rm -rf /mnt/boot/config*
-sudo rm -rf /mnt/boot/vmlinuz*
+sudo rm -rf /mnt/boot/vmlinu*
 sudo rm -rf /mnt/boot/System.map*
 
 sync
@@ -261,9 +271,9 @@ sudo rm -rf ~/updates
 mkdir -p ~/updates/bootfs/overlays
 mkdir -p ~/updates/rootfs/boot
 mkdir -p ~/updates/rootfs/lib/firmware
-mkdir -p ~/updates/rootfs/lib/modules/${KERNEL_VERSION}
-cp -raf ~/firmware-build/* ~/updates/rootfs/lib/firmware
-cp -raf ~/rpi-linux/lib/modules/* ~/updates/rootfs/lib/modules
+mkdir -p ~/updates/rootfs/lib/modules/"${KERNEL_VERSION}"
+cp --recursive --update --archive --no-preserve=ownership ~/firmware-build/* ~/updates/rootfs/lib/firmware
+cp --recursive --update --archive --no-preserve=ownership ~/rpi-linux/lib/modules/* ~/updates/rootfs/lib/modules
 
 sync
 sleep 2
@@ -339,51 +349,53 @@ arm_64bit=1
 EOF
 
 # % Copy overlays / image / firmware
-cp -raf ~/rpi-linux/arch/arm64/boot/dts/broadcom/*.dtb ~/updates/bootfs
-cp -raf ~/rpi-linux/arch/arm64/boot/dts/overlays/*.dtb* ~/updates/bootfs/overlays
-cp -raf ~/rpi-linux/arch/arm64/boot/Image ~/updates/rootfs/boot/kernel8.img
-cp -raf ~/rpi-linux/arch/arm64/boot/Image ~/updates/rootfs/boot/vmlinuz-"${KERNEL_VERSION}"
+cp --update --archive --no-preserve=ownership ~/rpi-linux/arch/arm64/boot/dts/broadcom/*.dtb ~/updates/bootfs
+cp --update --archive --no-preserve=ownership ~/rpi-linux/arch/arm64/boot/dts/overlays/*.dtb* ~/updates/bootfs/overlays
+cp -rf ~/rpi-linux/arch/arm64/boot/Image ~/updates/rootfs/boot/kernel8.img
+cp -rf ~/rpi-linux/vmlinux ~/updates/rootfs/boot/vmlinux-"${KERNEL_VERSION}"
+cp -rf ~/rpi-linux/System.map ~/updates/rootfs/boot/System.map-"${KERNEL_VERSION}"
+cp -rf ~/rpi-linux/Module.symvers ~/updates/rootfs/boot/Module.symvers-"${KERNEL_VERSION}"
+cp -vf ~/rpi-linux/.config ~/updates/rootfs/boot/config-"${KERNEL_VERSION}"
 
 # % Copy the new kernel modules
 mkdir -p ~/updates/rootfs/lib/modules/"${KERNEL_VERSION}"
-cp -ravf ~/rpi-linux/kernel-build/kernel-install/* ~/updates/rootfs
+cp --update --archive --no-preserve=ownership ~/rpi-linux/lib/modules/* ~/updates/rootfs/lib/modules
 
-# % Copy gpu firmware via start*.elf and fixup*.dat files
-cp -rvf ~/firmware/boot/*.elf ~/updates/bootfs
-cp -rvf ~/firmware/boot/*.dat ~/updates/bootfs
-
-# % Copy kernel System.map and .config files
-#cp -vf ~/rpi-linux/System.map ~/updates/bootfs/System.map-"${KERNEL_VERSION}"
-#cp -vf ~/rpi-linux/.config ~/updates/bootfs/config-"${KERNEL_VERSION}"
+# % Copy kernel and gpu firmware start*.elf and fixup*.dat files
+cp --update --archive --no-preserve=ownership ~/firmware/boot/*.elf ~/updates/bootfs
+cp --update --archive --no-preserve=ownership ~/firmware/boot/*.dat ~/updates/bootfs
 cp -vf ~/rpi-linux/arch/arm64/boot/Image ~/updates/bootfs/kernel8.img
 
 # % Copy bootfs and rootfs
-sudo cp -raf ~/updates/bootfs/* /mnt/boot/firmware
-sudo cp -raf ~/updates/rootfs/* /mnt
+sudo cp --update --archive --no-preserve=ownership ~/updates/bootfs/* /mnt/boot/firmware
+sudo cp --update --archive --no-preserve=ownership ~/updates/rootfs/* /mnt
 
 # % Create symlinks to our custom kernel -- this allows initramfs to find our kernel and update modules successfully
 (
   cd /mnt/boot
-  sudo ln -s vmlinuz-"${KERNEL_VERSION}" vmlinuz
-  #sudo ln -s initrd.img-"${KERNEL_VERSION}" initrd.img
+  sudo ln -s vmlinux-"${KERNEL_VERSION}" vmlinux
   sudo ln -s System.map-"${KERNEL_VERSION}" System.map
-  sudo ln -s Module.symvers-"${KERNEL_VERSION}" Modules.symvers
+  sudo ln -s Module.symvers-"${KERNEL_VERSION}" Module.symvers
   cd ~
 )
 
 # % Create kernel header symlink
-#cd /mnt
-#sudo rm lib/modules/${KERNEL_VERSION}/build
-#sudo ln -s usr/src/linux-headers-${KERNEL_VERSION} lib/modules/${KERNEL_VERSION}/build
+cd /mnt
+sudo rm lib/modules/${KERNEL_VERSION}/build
+sudo ln -s usr/src/linux-headers-${KERNEL_VERSION} lib/modules/${KERNEL_VERSION}/build
 
 # % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
 sudo rm -rf /mnt/var/lib/initramfs-tools/*
-sha1sum=$(sha1sum  /mnt/boot/vmlinuz)
-echo "$sha1sum  /boot/vmlinuz-${KERNEL_VERSION}" | sudo -A tee -a /mnt/var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
+sha1sum=$(sha1sum /mnt/boot/vmlinux)
+echo "$sha1sum  /boot/vmlinux-${KERNEL_VERSION}" | sudo -A tee -a /mnt/var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
 
 # QUIRKS
-
 cd ~
+
+# % Fix WiFi
+# % The Pi 4 version returns boardflags3=0x44200100
+# % The Pi 3 version returns boardflags3=0x48200100cd
+sudo sed -i "s:0x48200100:0x44200100:g" /mnt/lib/firmware/brcm/brcmfmac43455-sdio.txt
 
 # % Remove flash-kernel hooks to prevent firmware updater from overriding our custom firmware
 sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
@@ -437,19 +449,13 @@ sudo chmod +x /mnt/etc/rc.local
 sudo chroot /mnt /bin/bash << EOF
 
 # % Fix /lib/firmware permission and symlink
-chown -R root /lib
+chown -R root:root /lib
 
 # % Add symbolic link from /etc/firmware to /lib/firmware (fixes Bluetooth)
 ln -s /lib/firmware /etc/firmware
 
-#xargs -I % sudo add-apt-repository -y % << EOF
-#  ppa:ubuntu-x-swat/updates
-#  ppa:ubuntu-raspi2/ppa
-#  ppa:theremote/ppa-ubuntu-raspi4
-#EOF
-
 # % Add updated mesa repository for video driver support
-#add-apt-repository ppa:theremote/ppa-ubuntu-raspi4 -y
+add-apt-repository ppa:theremote/ppa-ubuntu-raspi4 -y
 
 # % Add updated mesa repository for video driver support
 add-apt-repository ppa:ubuntu-x-swat/updates -y
@@ -460,9 +466,8 @@ add-apt-repository ppa:ubuntu-raspi2/ppa -y
 # % Hold Ubuntu packages that will break booting from the Pi 4
 apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
 
-# % Remove linux-firmware-raspi2
 # % Remove ureadahead, does not support arm and makes our bootup unclean when checking systemd status
-apt remove linux-firmware-raspi2 ureadahead libnih1 --allow-change-held-packages -y
+apt remove ureadahead libnih1
 
 # % Install wireless tools and bluetooth
 # % Install Raspberry Pi userland utilities via libraspberrypi-bin (vcgencmd, etc.)

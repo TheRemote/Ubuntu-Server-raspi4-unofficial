@@ -10,12 +10,16 @@
 export DEBFULLNAME="James A. Chambers (https://jamesachambers.com)"
 export DEBEMAIL="james@jamesachambers.com"
 
+sudo apt install devscripts dput pgpgpg -y
+
+cd ~
 sudo rm -rf tmp
 mkdir tmp
 cd tmp
 dpkg-source -x ../linux-*.dsc
 cd linux-*/
-sed -i 's;james <james@james>;James A. Chambers (https://jamesachambers.com) <james@jamesachambers.com>;g' debian/changelog
+sed -i 's;james <james@james-VirtualBox>;James A. Chambers (https://jamesachambers.com) <james@jamesachambers.com>;g' debian/changelog
 debuild -S -sa
 
+cd ..
 dput ppa:theremote/ppa-ubuntu-raspi4 *.changes
