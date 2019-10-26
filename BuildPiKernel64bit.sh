@@ -346,7 +346,7 @@ if [ ! -d "rpi-linux" ]; then
   # % Copy Module.symvers to source tree
   cp --archive --no-preserve=ownership Module.symvers ~/rpi-source
 
-  #export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
+  echo `cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 fi
 
 

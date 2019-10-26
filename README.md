@@ -14,12 +14,13 @@ This unofficial Ubuntu image is a compilation of all the latest knowledge/firmwa
     <li>Uses the official 4.19.y Raspbian linux kernel built with arm64 flags</li>
     <li>Firmware updates from the Raspbian image and the RPi-Distro/firmware-nonfree repository</li>
     <li>3D video hardware acceleration support via vc4-fkms-v3d stack.  Videos / games are giving very high and smooth FPS.</li>
-    <li>Includes kernel headers and the full kernel source tree used to build the image (/usr/src/ directory.  It can build out-of-tree and DKMS modules or you may compile your own custom kernel from it</li>
+    <li>Includes kernel headers and the full kernel source tree used to build a kernel with your own custom flags (/usr/src/ directory)</li>
+    <li>Can build out-of-tree and DKMS modules.  Type apt-install hello-dkms to build a test DKMS module / get all the dependencies</li>
     <li>Full desktop support available via apt install kubuntu-desktop, xubuntu-desktop, xfce4, mate-desktop-environment, etc.)</li>
     <li>KVM virtualization support</li>
-</ul><br>
+</ul>
 <br>
-I have included both the script to create the image yourself using the official images as a base.  Binary releases are also available as a preinstalled image (available in the "Releases" section at the top of this page) that you can download and write to a SD card without building anything yourself.  Note that the script is more of a process and not one that you can just clone and use.  Please read through it if you want to build the image as there are lines commented that you will want read if you are building from scratch.<br>
+I have included both the script to create the image yourself (BuildPiKernel64bit.sh) using the official images as a base.  Binary releases are also available as a preinstalled image (available in the "Releases" section at the top of this page) that you can download and write to a SD card without building anything yourself.  Note that the script is more of a process and not one that you can just clone and use.  Please read through it if you want to build the image as there are lines commented that you will want read if you are building from scratch.<br>
 <br>
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
