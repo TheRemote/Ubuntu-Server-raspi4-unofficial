@@ -506,21 +506,22 @@ sleep "$SLEEP_SHORT"
 # % Create symlinks to our custom kernel -- this allows initramfs to find our kernel and update modules successfully
 (
   cd /mnt/boot
+  
   sudo rm -f vmlinux
   sudo rm -f System.map
   sudo rm -f Module.symvers
   sudo ln -s vmlinux-"${KERNEL_VERSION}" vmlinux
   sudo ln -s System.map-"${KERNEL_VERSION}" System.map
   sudo ln -s Module.symvers-"${KERNEL_VERSION}" Module.symvers
+
+  # % Create kernel header symlink
+  cd /mnt/lib/modules/"${KERNEL_VERSION}"
+  sudo rm -rf build source
+  sudo ln -s  ../../../usr/src/rpi-linux-"${KERNEL_VERSION}"/ build
+  sudo ln -s  ../../../usr/src/rpi-linux-"${KERNEL_VERSION}"/ source
+
   cd ~
 )
-
-# % Create kernel header symlink
-cd /mnt
-sudo rm -f lib/modules/"${KERNEL_VERSION}"/build
-sudo rm -f lib/modules/"${KERNEL_VERSION}"/source
-sudo ln -s usr/src/rpi-linux-"${KERNEL_VERSION}" lib/modules/"${KERNEL_VERSION}"/build
-sudo ln -s usr/src/rpi-linux-"${KERNEL_VERSION}" lib/modules/"${KERNEL_VERSION}"/source
 
 # % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
 sha1sum=$(sha1sum /mnt/boot/vmlinux)
