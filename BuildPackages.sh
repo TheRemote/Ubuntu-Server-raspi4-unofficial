@@ -10,7 +10,7 @@
 export DEBFULLNAME="James A. Chambers (https://jamesachambers.com)"
 export DEBEMAIL="james@jamesachambers.com"
 
-sudo apt install devscripts dput pgpgpg -y
+sudo apt install devscripts dput pgpgpg lintian -y
 
 cd ~
 sudo rm -rf tmp

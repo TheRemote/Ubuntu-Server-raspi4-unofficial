@@ -1,106 +1,249 @@
 #!/usr/bin/env bash
 
+# More information available at:
+# https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/
+# https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
+
 # CONFIGURATION
+
 IMAGE_VERSION="14"
+
 TARGET_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img.xz"
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
 SOURCE_RELEASE="18.04.3"
 SOURCE_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
 SOURCE_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img"
 RASPBIAN_IMG="2019-09-26-raspbian-buster-lite.img"
-MountXZ=""
+
+export SLEEP_SHORT="0.1"
+export SLEEP_LONG="1"
+
+export MOUNT_IMG=""
 export KERNEL_VERSION="4.19.80-v8-james"
 
 # FUNCTIONS
+function PrepareIMG {
+  while mountpoint -q /mnt/boot/firmware && ! sudo umount /mnt/boot/firmware; do
+    echo "/mnt/boot/firmware still mounted -- unmounting"
+    sync; sync
+    sleep "$SLEEP_SHORT"
+  done
+
+  while mountpoint -q /mnt && ! sudo umount /mnt; do
+    echo "/mnt still mounted -- unmounting"
+    sync; sync
+    sleep "$SLEEP_SHORT"
+  done
+
+  MountCheck=$(sudo losetup --list | grep "(deleted)" | awk 'NR==1{ print $1 }')
+  while [ -n "$MountCheck" ]; do
+    echo "Leftover image $MountCheck found -- removing"
+    sudo rm -rf $MountCheck
+    MountCheck=$(sudo losetup --list | grep "(deleted)" | awk 'NR==1{ print $1 }')
+  done
+}
 function MountIMG {
-  MountXZ=$(sudo kpartx -avs "$TARGET_IMG")
-  sync
-  MountXZ=$(echo "$MountXZ" | awk 'NR==1{ print $3 }')
-  MountXZ="${MountXZ%p1}"
-  echo "Mounted $TARGET_IMG on loop $MountXZ"
+   if [ -n "${MOUNT_IMG}" ]; then
+    echo "An image is already mounted on ${MOUNT_IMG}"
+    return 1
+  fi
+  if [ ! -e "${1}" ]; then
+    echo "Image ${1} does not exist!"
+    return 1
+  fi
+
+  echo "Mounting image ${1}"
+  MountCheck=$(sudo kpartx -avs "${1}")
+  echo "$MountCheck"
+  export MOUNT_IMG=$(echo "$MountCheck" | awk 'NR==1{ print $3 }')
+  export MOUNT_IMG="${MOUNT_IMG%p1}"
+
+  if [ -n "${MOUNT_IMG}" ]; then
+    sync; sync
+    sleep "$SLEEP_SHORT"
+    echo "Mounted ${1} on loop ${MOUNT_IMG}"
+  else
+    echo "Unable to mount ${1}: ${MOUNT_IMG} Check - $MountCheck"
+    export MOUNT_IMG=""
+  fi
+
+  sync; sync
+  sleep "$SLEEP_SHORT"
 }
 
 function MountIMGPartitions {
-  # % Mount the image on /mnt (rootfs)
-  sudo mount /dev/mapper/"${MountXZ}"p2 /mnt
+  echo "Mounting partitions"
+  # % Mount the rootfs on /mnt (/)
+  sudo mount "/dev/mapper/${1}p2" /mnt
+ 
+  # % Mount the bootfs on /mnt/boot/firmware (/boot/firmware)
+  sudo mount "/dev/mapper/${1}p1" /mnt/boot/firmware
 
-  # % Remove overlapping firmware folder from rootfs
-  sudo rm -rf /mnt/boot/firmware
-  sudo mkdir /mnt/boot/firmware
-
-  # % Mount /mnt/boot/firmware folder from bootfs
-  sudo mount /dev/mapper/"${MountXZ}"p1 /mnt/boot/firmware
-  sync
-  sleep 0.1
+  sync; sync
+  sleep "$SLEEP_SHORT"
 }
 
 function UnmountIMGPartitions {
-  sync
-  sleep 0.1
+  sync; sync
 
+  # % Unmount boot and root partitions
   echo "Unmounting /mnt/boot/firmware"
   while mountpoint -q /mnt/boot/firmware && ! sudo umount /mnt/boot/firmware; do
-    sync
-    sleep 0.1
+    sync; sync
+    sleep "$SLEEP_SHORT"
   done
 
   echo "Unmounting /mnt"
   while mountpoint -q /mnt && ! sudo umount /mnt; do
-    sync
-    sleep 0.1
+    sync; sync
+    sleep "$SLEEP_SHORT"
   done
 
-  sync
-  sleep 0.1
+  sync; sync
 }
 
 function UnmountIMG {
-  sync
-  sleep 0.1
+  # % Unmount image and save changes
+  sync; sync
 
+  # % Check if image is mounted first
+  MountCheck=$(sudo losetup --list | grep "${1}")
+  if [ ! -n "$MountCheck" ]; then
+    echo "Unable to unmount $1 (not in losetup --list)"
+    UnmountIMGPartitions
+    export MOUNT_IMG=""
+    return
+  fi
+
+  echo "Unmounting $1"
   UnmountIMGPartitions
+  sudo kpartx -dvs "$1"
 
-  echo "Unmounting $TARGET_IMG"
-  sudo kpartx -dvs "$TARGET_IMG"
-
-  while [ -n "$(sudo losetup --list | grep /dev/${MountXZ})" ]; do
-    sync
-    sleep 0.1
+  # % Wait for loop to disappear from list before continuing
+  WaitLoops=0
+  while [ -n "$(sudo losetup --list | grep ${1})" ]; do
+    WaitLoops=$((WaitLoops+1))
+    if (( WaitLoops > 50 )); then
+      echo "Exceeded maximum wait time -- trying to force close"
+      sudo kpartx -dvs "${1}"
+      sudo losetup -D
+    fi
+    sync; sync
+    sleep "$SLEEP_SHORT"
   done
+
+  export MOUNT_IMG=""
 }
 
+function CompactIMG {
+  echo "Compacting IMG file ${1}"
+  sudo rm -f "${1}.2"
+  sudo virt-sparsify "${1}" "${1}.2"
+  sync; sync
+  sleep "$SLEEP_SHORT"
+  
+  sudo rm -f "${1}"
+  mv "${1}.2" "${1}"
+  sync; sync
+  sleep "$SLEEP_SHORT"
+}
+
+function BeforeCleanIMG {
+  echo "Cleaning IMG file (before)"
+
+  sudo rm -rf /mnt/boot/firmware/*
+  sudo rm -rf /mnt/boot/initrd*
+  sudo rm -rf /mnt/boot/config*
+  sudo rm -rf /mnt/boot/vmlinu*
+  sudo rm -rf /mnt/boot/System.map*
+
+  sudo rm -rf /mnt/lib/firmware/4.15.0-1041-raspi2
+  sudo rm -rf /mnt/lib/modules/*
+
+  sudo rm -rf /mnt/usr/src/*
+  sudo rm -rf /mnt/usr/lib/linux-firmware-raspi2
+
+  sudo rm -rf /mnt/var/log/*.gz 
+  sudo rm -rf /mnt/var/lib/initramfs-tools/*
+  sudo rm -rf /mnt/var/lib/apt/ports* /mnt/var/lib/apt/*InRelease /mnt/var/lib/apt/*-en /mnt/var/lib/apt/*Packages
+
+  # % Remove flash-kernel hooks to prevent firmware updater from overriding our custom firmware
+  sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
+  sudo rm -f /mnt/etc/kernel/postrm.d/zz-flash-kernel
+  sudo rm -f /mnt/etc/initramfs/post-update.d/flash-kernel
+
+  # % Remove old configuration files that we are replacing with our new ones
+  sudo rm -f /mnt/etc/rc.local
+  sudo rm -f /mnt/etc/fstab
+  #sudo rm -f /mnt/etc/resolv.conf
+  sudo rm -f /mnt/etc/default/crda
+  sudo rm -f /mnt/etc/hosts
+
+  # Clear Python cache
+  sudo find /mnt -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
+
+  sudo rm -rf /mnt/var/crash/*
+  #sudo rm -rf /mnt/var/run/*
+
+  sync; sync
+  sleep "$SLEEP_LONG"
+}
+
+function AfterCleanIMG {
+  echo "Cleaning IMG file (after)"
+
+  # Clear Python cache
+  sudo find /mnt -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
+
+  # % Remove any crash files generated
+  sudo rm -rf /mnt/var/crash/*
+  #sudo rm -rf /mnt/var/run/*
+
+  # % Clear apt cache
+  sudo rm -rf /mnt/var/lib/apt/ports* /mnt/var/lib/apt/*InRelease /mnt/var/lib/apt/*-en /mnt/var/lib/apt/*Packages
+  
+  sync; sync
+  sleep "$SLEEP_LONG"
+}
 
 # INSTALL DEPENDENCIES
-sudo apt-get install build-essential git curl unzip libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static zerofree systemd-container -y
+echo "Installing dependencies"
+sudo apt-get install build-essential git curl unzip libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static libguestfs-tools -y
 
-# PULL UBUNTU RASPBERRY PI 3 IMAGE
-if [ ! -f "$TARGET_IMG" ]; then
-  sudo rm -f $TARGET_IMG
-fi
+PrepareIMG
 
+# % Get Raspberry Pi 3 Ubuntu source image 
 if [ ! -f "$SOURCE_IMGXZ" ]; then
   wget http://cdimage.ubuntu.com/ubuntu/releases/$SOURCE_RELEASE/release/$SOURCE_IMGXZ
 fi
 
+# % Extract and compact our source image from the xz if the source image isn't present
+if [ ! -f "$SOURCE_IMG" ]; then
+  xzcat "$SOURCE_IMGXZ" > "$SOURCE_IMG"
+  MountIMG "$SOURCE_IMG"
+  MountIMGPartitions "${MOUNT_IMG}"
+  BeforeCleanIMG
+  UnmountIMG "$SOURCE_IMG"
+  CompactIMG "$SOURCE_IMG"
+fi
+
+# % Copy fresh copy of our source image to be our target image
+if [ ! -f "$TARGET_IMG" ]; then
+  sudo rm -f "$TARGET_IMG"
+fi
+cp -vf "$SOURCE_IMG" "$TARGET_IMG"
+# % Expands the target image by approximately 300MB to help us not run out of space and encounter errors
+truncate -s +609715200 "$TARGET_IMG"
+sync; sync
+
+# % Check for Raspbian image and download if not present
 if [ ! -f "$RASPBIAN_IMG" ]; then
   curl -O -J -L https://downloads.raspberrypi.org/raspbian_lite_latest
+
   unzip raspbian_lite_latest
   rm -f raspbian_lite_latest
 fi
 
-if [ ! -f "$SOURCE_IMG" ]; then
-  xzcat "$SOURCE_IMGXZ" > "$SOURCE_IMG"
-fi
-
-sudo rm -f "$TARGET_IMG"
-cp -vf "$SOURCE_IMG" "$TARGET_IMG"
-
-sync
-sleep 5
-
-# % Expands the image by approximately 300MB to help us not run out of space and encounter errors
-truncate -s +309715200 "$TARGET_IMG"
-sync
 
 # BUILD CROSS COMPILE TOOLCHAIN
 cd ~
@@ -155,10 +298,10 @@ cd ~
 sudo rm -rf firmware-build
 mkdir firmware-build
 cp --recursive --update --archive --no-preserve=ownership ~/firmware-nonfree/* ~/firmware-build
-cp --recursive --update --archive --no-preserve=ownership ~/firmware-raspbian/* ~/firmware-build
+cp --verbose --recursive --update --archive --no-preserve=ownership ~/firmware-raspbian/* ~/firmware-build
 sudo rm -rf ~/firmware-build/.git 
 sudo rm -rf ~/firmware-build/.github
-sudo chown -R root:root ~/firmware-build 
+#sudo chown -R root:root ~/firmware-build 
 
 # BUILD KERNEL
 cd ~
@@ -167,6 +310,7 @@ if [ ! -d "rpi-linux" ]; then
   git clone https://github.com/raspberrypi/linux.git rpi-linux --single-branch --branch rpi-4.19.y --depth 1
   cd ~/rpi-linux
   git checkout origin/rpi-4.19.y
+  rm -rf .git .git* .tmp_versions
 
   # CONFIGURE / MAKE
   PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
@@ -187,30 +331,34 @@ if [ ! -d "rpi-linux" ]; then
 
   # % Run prepare to register all our .config changes
   cd ~/rpi-linux
-  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare modules_prepare
 
-  # % Prepare and build the rpi-linux source
-  # % Create debian packages to make it easy to update the image
+  # % Save copy of built source tree (needed to compile kernel modules)
+  cp --recursive --update --archive --no-preserve=ownership ~/rpi-linux ~/rpi-source
+
+  # % Prepare and build the rpi-linux source - create debian packages to make it easy to update the image
   PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-james KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
   
   # % Build kernel modules
-  #export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
-  make -j$(nproc) DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
   depmod --basedir . "${KERNEL_VERSION}"
+
+  # % Copy Module.symvers to source tree
+  cp --archive --no-preserve=ownership Module.symvers ~/rpi-source
+
+  #export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 fi
 
-#export KERNEL_VERSION=`cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 
-
-# MOUNT IMAGE
+# PREPARE IMAGE
 cd ~
-MountIMG
+MountIMG "$TARGET_IMG"
 
+# Run fdisk
 # % Get the starting offset of the root partition
-PART_START=$(sudo parted /dev/"${MountXZ}" -ms unit s p | grep ":ext4" | cut -f 2 -d: | sed 's/[^0-9]//g')
-
+PART_START=$(sudo parted "/dev/${MOUNT_IMG}" -ms unit s p | grep ":ext4" | cut -f 2 -d: | sed 's/[^0-9]//g')
 # % Perform fdisk to correct the partition table
-sudo fdisk /dev/"${MountXZ}" <<EOF
+sudo fdisk "/dev/${MOUNT_IMG}" << EOF
 p
 d
 2
@@ -223,47 +371,27 @@ p
 w
 EOF
 
-# Close and unmount image then reopen it to get the new mapping
-UnmountIMG
-MountIMG
+UnmountIMG "$TARGET_IMG"
+MountIMG "$TARGET_IMG"
 
-# Run fsck
-sudo e2fsck -fva /dev/mapper/"${MountXZ}"p2
-sync
-sleep 1
-
-UnmountIMG
-MountIMG
+# Run e2fsck
+sudo e2fsck -fva "/dev/mapper/${MOUNT_IMG}p2"
+sync; sync
+sleep "$SLEEP_SHORT"
+UnmountIMG "$TARGET_IMG"
+MountIMG "$TARGET_IMG"
 
 # Run resize2fs
-sudo resize2fs /dev/mapper/"${MountXZ}"p2
-sync
-sleep 1
+sudo resize2fs "/dev/mapper/${MOUNT_IMG}p2"
+sync; sync
+sleep "$SLEEP_SHORT"
+UnmountIMG "$TARGET_IMG"
 
-UnmountIMG
-MountIMG
+# Compact image after our file operations
+CompactIMG "$TARGET_IMG"
+MountIMG "$TARGET_IMG"
+MountIMGPartitions "${MOUNT_IMG}"
 
-# % Zero out free space on drive to reduce compressed img size
-sudo zerofree -v /dev/mapper/"${MountXZ}"p2
-sync
-sleep 1
-
-# % Map the partitions of the IMG file so we can access the filesystem
-MountIMGPartitions
-
-# % Clean out old firmware, kernel and modules that don't support RPI 4
-sudo rm -rf /mnt/lib/firmware/4.15.0-1041-raspi2
-sudo rm -rf /mnt/boot/firmware/*
-sudo rm -rf /mnt/usr/src/*
-sudo rm -rf /mnt/lib/modules/*
-
-sudo rm -rf /mnt/boot/initrd*
-sudo rm -rf /mnt/boot/config*
-sudo rm -rf /mnt/boot/vmlinu*
-sudo rm -rf /mnt/boot/System.map*
-
-sync
-sleep 2
 
 # CREATE FILES FOR UPDATER
 cd ~
@@ -272,20 +400,19 @@ mkdir -p ~/updates/bootfs/overlays
 mkdir -p ~/updates/rootfs/boot
 mkdir -p ~/updates/rootfs/lib/firmware
 mkdir -p ~/updates/rootfs/lib/modules/"${KERNEL_VERSION}"
+mkdir -p ~/updates/rootfs/usr/src/rpi-linux-"${KERNEL_VERSION}"
 cp --recursive --update --archive --no-preserve=ownership ~/firmware-build/* ~/updates/rootfs/lib/firmware
 cp --recursive --update --archive --no-preserve=ownership ~/rpi-linux/lib/modules/* ~/updates/rootfs/lib/modules
-
-sync
-sleep 2
+cp --recursive --update --archive --no-preserve=ownership ~/rpi-source/* ~/updates/rootfs/usr/src/rpi-linux-"${KERNEL_VERSION}"
+sync; sync
+sleep "$SLEEP_SHORT"
 
 # % Create cmdline.txt
-sudo rm -f ~/updates/bootfs/cmdline.txt
 cat << EOF | tee ~/updates/bootfs/cmdline.txt
 snd_bcm2835.enable_headphones=1 snd_bcm2835.enable_hdmi=1 snd_bcm2835.enable_compat_alsa=0 dwc_otg.fiq_fix_enable=2 console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 fsck.repair=yes fsck.mode=force rootwait
 EOF
 
 # % Create config.txt
-sudo rm -f ~/updates/bootfs/config.txt
 cat << EOF | tee ~/updates/bootfs/config.txt
 # uncomment if you get no picture on HDMI for a default "safe" mode
 #hdmi_safe=1
@@ -356,6 +483,8 @@ cp -rf ~/rpi-linux/vmlinux ~/updates/rootfs/boot/vmlinux-"${KERNEL_VERSION}"
 cp -rf ~/rpi-linux/System.map ~/updates/rootfs/boot/System.map-"${KERNEL_VERSION}"
 cp -rf ~/rpi-linux/Module.symvers ~/updates/rootfs/boot/Module.symvers-"${KERNEL_VERSION}"
 cp -vf ~/rpi-linux/.config ~/updates/rootfs/boot/config-"${KERNEL_VERSION}"
+sync; sync
+sleep "$SLEEP_SHORT"
 
 # % Copy the new kernel modules
 mkdir -p ~/updates/rootfs/lib/modules/"${KERNEL_VERSION}"
@@ -365,14 +494,21 @@ cp --update --archive --no-preserve=ownership ~/rpi-linux/lib/modules/* ~/update
 cp --update --archive --no-preserve=ownership ~/firmware/boot/*.elf ~/updates/bootfs
 cp --update --archive --no-preserve=ownership ~/firmware/boot/*.dat ~/updates/bootfs
 cp -vf ~/rpi-linux/arch/arm64/boot/Image ~/updates/bootfs/kernel8.img
+sync; sync
+sleep "$SLEEP_SHORT"
 
 # % Copy bootfs and rootfs
-sudo cp --update --archive --no-preserve=ownership ~/updates/bootfs/* /mnt/boot/firmware
-sudo cp --update --archive --no-preserve=ownership ~/updates/rootfs/* /mnt
+sudo cp --archive --no-preserve=ownership ~/updates/bootfs/* /mnt/boot/firmware
+sudo cp --archive --no-preserve=ownership ~/updates/rootfs/* /mnt
+sync; sync
+sleep "$SLEEP_SHORT"
 
 # % Create symlinks to our custom kernel -- this allows initramfs to find our kernel and update modules successfully
 (
   cd /mnt/boot
+  sudo rm -f vmlinux
+  sudo rm -f System.map
+  sudo rm -f Module.symvers
   sudo ln -s vmlinux-"${KERNEL_VERSION}" vmlinux
   sudo ln -s System.map-"${KERNEL_VERSION}" System.map
   sudo ln -s Module.symvers-"${KERNEL_VERSION}" Module.symvers
@@ -381,13 +517,15 @@ sudo cp --update --archive --no-preserve=ownership ~/updates/rootfs/* /mnt
 
 # % Create kernel header symlink
 cd /mnt
-sudo rm lib/modules/${KERNEL_VERSION}/build
-sudo ln -s usr/src/linux-headers-${KERNEL_VERSION} lib/modules/${KERNEL_VERSION}/build
+sudo rm -f lib/modules/"${KERNEL_VERSION}"/build
+sudo rm -f lib/modules/"${KERNEL_VERSION}"/source
+sudo ln -s usr/src/rpi-linux-"${KERNEL_VERSION}" lib/modules/"${KERNEL_VERSION}"/build
+sudo ln -s usr/src/rpi-linux-"${KERNEL_VERSION}" lib/modules/"${KERNEL_VERSION}"/source
 
 # % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
-sudo rm -rf /mnt/var/lib/initramfs-tools/*
 sha1sum=$(sha1sum /mnt/boot/vmlinux)
-echo "$sha1sum  /boot/vmlinux-${KERNEL_VERSION}" | sudo -A tee -a /mnt/var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
+sudo mkdir -p /mnt/var/lib/initramfs-tools
+echo "$sha1sum  /boot/vmlinux-${KERNEL_VERSION}" | sudo tee -a /mnt/var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
 
 # QUIRKS
 cd ~
@@ -397,55 +535,24 @@ cd ~
 # % The Pi 3 version returns boardflags3=0x48200100cd
 sudo sed -i "s:0x48200100:0x44200100:g" /mnt/lib/firmware/brcm/brcmfmac43455-sdio.txt
 
-# % Remove flash-kernel hooks to prevent firmware updater from overriding our custom firmware
-sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
-sudo rm -f /mnt/etc/kernel/postrm.d/zz-flash-kernel
-sudo rm -f /mnt/etc/initramfs/post-update.d/flash-kernel
-
 # % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
 sudo sed -i "s/ib_iser/#ib_iser/g" /mnt/lib/modules-load.d/open-iscsi.conf
 sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /mnt/lib/modules-load.d/open-iscsi.conf
 
 # % Fix update-initramfs mdadm.conf warning
-grep "ARRAY devices" /mnt/etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo -A tee -a /mnt/etc/mdadm/mdadm.conf >/dev/null;
+sudo grep "ARRAY devices" /mnt/etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo tee -a /mnt/etc/mdadm/mdadm.conf >/dev/null;
 
 # CHROOT
-
 # % Copy QEMU bin file so we can chroot into arm64 from x86_64
 sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
 
-# % Install new kernel modules
+# % Copy resolv.conf from local host so we have networking in our chroot
 sudo mkdir -p /mnt/run/systemd/resolve
-cat /run/systemd/resolve/stub-resolv.conf | sudo -A tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
-#sudo touch /mnt/etc/modules-load.d/cups-filters.conf
-
-# % Startup tweaks to fix bluetooth
-sudo rm -f /mnt/etc/rc.local
-cat << EOF | sudo tee /mnt/etc/rc.local
-#!/bin/bash
-#
-# rc.local
-#
-
-# % Fix crackling sound
-if [ -n "`which pulseaudio`" ]; then
-  GrepCheck=$(cat /etc/pulse/default.pa | grep "load-module module-udev-detect tsched=0")
-  if [ ! -n "$GrepCheck" ]; then
-    sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
-  fi
-fi
-
-# Enable bluetooth
-if [ -n "`which hciattach`" ]; then
-  echo "Attaching Bluetooth controller ..."
-  hciattach /dev/ttyAMA0 bcm43xx 921600
-fi
-
-exit 0
-EOF
-sudo chmod +x /mnt/etc/rc.local
+sudo touch /mnt/run/systemd/resolve/stub-resolv.conf
+sudo cat /run/systemd/resolve/stub-resolv.conf | sudo tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
 
 # % Enter Ubuntu image chroot
+echo "Entering chroot of IMG file"
 sudo chroot /mnt /bin/bash << EOF
 
 # % Fix /lib/firmware permission and symlink
@@ -471,14 +578,14 @@ apt remove ureadahead libnih1
 
 # % Install wireless tools and bluetooth
 # % Install Raspberry Pi userland utilities via libraspberrypi-bin (vcgencmd, etc.)
-# % INSTALL HAVAGED - prevents low entropy from making the Pi take a long time to start up.
+# % Install haveged - prevents low entropy issues from making the Pi take a long time to start up
 # % Install raspi-config dependencies (libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils)
 apt update && apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils -y && apt dist-upgrade -y
 
 # % Install raspi-config utility
-wget https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191005_all.deb
-dpkg -i raspi-config_20191005_all.deb
-rm raspi-config_20191005_all.deb
+wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191021_all.deb"
+dpkg -i "raspi-config_20191021_all.deb"
+rm "raspi-config_20191021_all.deb"
 sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
 sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/bin/raspi-config
 sed -i "s:armhf:arm64:g" /usr/bin/raspi-config
@@ -499,9 +606,11 @@ update-initramfs -u
 apt autoremove -y && apt clean && apt autoclean
 
 EOF
+echo "The chroot container has exited"
 
 # % Set regulatory crda to enable 5 Ghz wireless
-sudo rm -f /mnt/etc/default/crda
+sudo mkdir -p /mnt/etc/default
+sudo touch /mnt/etc/default/crda
 cat << EOF | sudo tee /mnt/etc/default/crda
 # Set REGDOMAIN to a ISO/IEC 3166-1 alpha2 country code so that iw(8) may set
 # the initial regulatory domain setting for IEEE 802.11 devices which operate
@@ -510,14 +619,14 @@ cat << EOF | sudo tee /mnt/etc/default/crda
 # Governments assert the right to regulate usage of radio spectrum within
 # their respective territories so make sure you select a ISO/IEC 3166-1 alpha2
 # country code suitable for your location or you may infringe on local
-# legislature. See `/usr/share/zoneinfo/zone.tab' for a table of timezone
+# legislature. See /usr/share/zoneinfo/zone.tab for a table of timezone
 # descriptions containing ISO/IEC 3166-1 alpha2 country codes.
 
 REGDOMAIN=US
 EOF
 
 # % Set loopback address in hosts to prevent slow bootup
-sudo rm -f /mnt/etc/hosts
+sudo touch /mnt/etc/hosts
 cat << EOF | sudo tee /mnt/etc/hosts
 127.0.0.1 localhost
 127.0.1.1 ubuntu
@@ -532,27 +641,47 @@ ff02::3 ip6-allhosts
 EOF
 
 # % Update fstab to allow fsck to run on rootfs
-sudo rm -f /mnt/etc/fstab
+sudo touch /mnt/etc/fstab
 cat << EOF | sudo tee /mnt/etc/fstab
 LABEL=writable	/	 ext4	defaults	0 1
 LABEL=system-boot       /boot/firmware  vfat    defaults        0       1
 EOF
 
-# % Remove any crash files generated during chroot
-sudo rm -rf /mnt/var/crash/*
-sudo rm -rf /mnt/var/run/*
+# % Startup tweaks to fix bluetooth and sound issues
+sudo touch /mnt/etc/rc.local
+sudo chmod +x /mnt/etc/rc.local
+cat << EOF | sudo tee /mnt/etc/rc.local
+#!/bin/bash
+#
+# rc.local
+#
 
-# UNMOUNT
+# % Fix crackling sound
+if [ -n "`which pulseaudio`" ]; then
+  GrepCheck=$(cat /etc/pulse/default.pa | grep "load-module module-udev-detect tsched=0")
+  if [ ! -n "$GrepCheck" ]; then
+    sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
+  fi
+fi
+
+# Enable bluetooth
+if [ -n "`which hciattach`" ]; then
+  echo "Attaching Bluetooth controller ..."
+  hciattach /dev/ttyAMA0 bcm43xx 921600
+fi
+
+exit 0
+EOF
+
+# Run the after clean function
+AfterCleanIMG
+
+# Run fsck on image then unmount and remount
 UnmountIMGPartitions
-
-# Run fsck on image
-sudo fsck.ext4 -pfv /dev/mapper/"${MountXZ}"p2
-sudo fsck.fat -av /dev/mapper/"${MountXZ}"p1
-
-sudo zerofree -v /dev/mapper/"${MountXZ}"p2
-
-# Save image
-UnmountIMG
+sudo fsck.ext4 -pfv "/dev/mapper/${MOUNT_IMG}p2"
+sudo fsck.fat -av "/dev/mapper/${MOUNT_IMG}p1"
+UnmountIMG "$TARGET_IMG"
+CompactIMG "$TARGET_IMG"
 
 # Clean up build directory
 #sudo rm -rf updates firmware-build tmp
