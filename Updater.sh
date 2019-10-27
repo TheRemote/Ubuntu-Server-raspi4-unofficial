@@ -11,7 +11,6 @@ echo "Checking for updates ..."
 if [ -d ".updates" ]; then
     cd .updates/Ubuntu-Server-raspi4-unofficial
     git pull
-    git reset --hard
     cd ..
 else
     mkdir .updates
