@@ -34,7 +34,7 @@ function Update {
         rm -f Updater.sh
         cp -f .updates/Ubuntu-Server-raspi4-unofficial/Updater.sh Updater.sh
         chmod +x Updater.sh
-        /bin/bash Updater.sh
+        exec $(readlink -f "$0")
         return 1
     fi
 
