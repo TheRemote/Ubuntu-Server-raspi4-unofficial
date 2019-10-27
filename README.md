@@ -17,6 +17,8 @@ This unofficial Ubuntu image is a compilation of all the latest knowledge/firmwa
     <li>Includes kernel headers and the full kernel source tree used to build a kernel with your own custom flags (/usr/src/ directory)</li>
     <li>Can build out-of-tree and DKMS modules.  Type apt-install hello-dkms to build a test DKMS module / get all the dependencies</li>
     <li>Full desktop support available via apt install kubuntu-desktop, xubuntu-desktop, xfce4, mate-desktop-environment, etc.)</li>
+    <li>5 GHz WiFi channel support</li>
+    <li>Working Bluetooth and WiFi</li>
     <li>KVM virtualization support</li>
 </ul>
 <br>

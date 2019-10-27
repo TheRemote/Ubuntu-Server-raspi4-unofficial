@@ -118,6 +118,8 @@ function UnmountIMG {
   echo "Unmounting $1"
   UnmountIMGPartitions
   sudo kpartx -dvs "$1"
+  sync; sync
+  sleep "$SLEEP_LONG"
 
   # % Wait for loop to disappear from list before continuing
   WaitLoops=0
@@ -298,7 +300,7 @@ cd ~
 sudo rm -rf firmware-build
 mkdir firmware-build
 cp --recursive --update --archive --no-preserve=ownership ~/firmware-nonfree/* ~/firmware-build
-cp --verbose --recursive --update --archive --no-preserve=ownership ~/firmware-raspbian/* ~/firmware-build
+cp --recursive --update --archive --no-preserve=ownership ~/firmware-raspbian/* ~/firmware-build
 sudo rm -rf ~/firmware-build/.git 
 sudo rm -rf ~/firmware-build/.github
 #sudo chown -R root:root ~/firmware-build 
@@ -311,6 +313,9 @@ if [ ! -d "rpi-linux" ]; then
   cd ~/rpi-linux
   git checkout origin/rpi-4.19.y
   rm -rf .git .git* .tmp_versions
+
+  # % Save copy of built source tree (needed to compile kernel modules)
+  #cp --recursive --update --archive --no-preserve=ownership ~/rpi-linux ~/rpi-source
 
   # CONFIGURE / MAKE
   PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
@@ -331,20 +336,18 @@ if [ ! -d "rpi-linux" ]; then
 
   # % Run prepare to register all our .config changes
   cd ~/rpi-linux
-  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare modules_prepare
-
-  # % Save copy of built source tree (needed to compile kernel modules)
-  cp --recursive --update --archive --no-preserve=ownership ~/rpi-linux ~/rpi-source
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare
 
   # % Prepare and build the rpi-linux source - create debian packages to make it easy to update the image
-  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 DTC_FLAGS="-@ -H epapr" CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-james KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
+  PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DTC_FLAGS="-@ -H epapr" LOCALVERSION=-james KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
   
   # % Build kernel modules
   PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
   depmod --basedir . "${KERNEL_VERSION}"
 
-  # % Copy Module.symvers to source tree
-  cp --archive --no-preserve=ownership Module.symvers ~/rpi-source
+  # % Copy Module.symvers and .config to source tree
+  #cp -f --archive --no-preserve=ownership Module.symvers ~/rpi-source
+  #cp -f --archive --no-preserve=ownership .config ~/rpi-source
 
   echo `cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 fi
@@ -493,7 +496,7 @@ cp --update --archive --no-preserve=ownership ~/rpi-linux/lib/modules/* ~/update
 # % Copy kernel and gpu firmware start*.elf and fixup*.dat files
 cp --update --archive --no-preserve=ownership ~/firmware/boot/*.elf ~/updates/bootfs
 cp --update --archive --no-preserve=ownership ~/firmware/boot/*.dat ~/updates/bootfs
-cp -vf ~/rpi-linux/arch/arm64/boot/Image ~/updates/bootfs/kernel8.img
+cp --archive --no-preserve=ownership ~/rpi-linux/arch/arm64/boot/Image ~/updates/bootfs/kernel8.img
 sync; sync
 sleep "$SLEEP_SHORT"
 
@@ -502,26 +505,6 @@ sudo cp --archive --no-preserve=ownership ~/updates/bootfs/* /mnt/boot/firmware
 sudo cp --archive --no-preserve=ownership ~/updates/rootfs/* /mnt
 sync; sync
 sleep "$SLEEP_SHORT"
-
-# % Create symlinks to our custom kernel -- this allows initramfs to find our kernel and update modules successfully
-(
-  cd /mnt/boot
-  
-  sudo rm -f vmlinux
-  sudo rm -f System.map
-  sudo rm -f Module.symvers
-  sudo ln -s vmlinux-"${KERNEL_VERSION}" vmlinux
-  sudo ln -s System.map-"${KERNEL_VERSION}" System.map
-  sudo ln -s Module.symvers-"${KERNEL_VERSION}" Module.symvers
-
-  # % Create kernel header symlink
-  cd /mnt/lib/modules/"${KERNEL_VERSION}"
-  sudo rm -rf build source
-  sudo ln -s  ../../../usr/src/rpi-linux-"${KERNEL_VERSION}"/ build
-  sudo ln -s  ../../../usr/src/rpi-linux-"${KERNEL_VERSION}"/ source
-
-  cd ~
-)
 
 # % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
 sha1sum=$(sha1sum /mnt/boot/vmlinux)
@@ -556,20 +539,40 @@ sudo cat /run/systemd/resolve/stub-resolv.conf | sudo tee /mnt/run/systemd/resol
 echo "Entering chroot of IMG file"
 sudo chroot /mnt /bin/bash << EOF
 
+# % Pull kernel version from /lib/modules folder
+export KERNEL_VERSION="$(ls /lib/modules)"
+
 # % Fix /lib/firmware permission and symlink
 chown -R root:root /lib
 
 # % Add symbolic link from /etc/firmware to /lib/firmware (fixes Bluetooth)
 ln -s /lib/firmware /etc/firmware
 
-# % Add updated mesa repository for video driver support
-add-apt-repository ppa:theremote/ppa-ubuntu-raspi4 -y
+# % Create kernel and component symlinks
+cd /boot
+sudo rm -f vmlinux
+sudo rm -f System.map
+sudo rm -f Module.symvers
+sudo ln -s vmlinux-"${KERNEL_VERSION}" vmlinux
+sudo ln -s System.map-"${KERNEL_VERSION}" System.map
+sudo ln -s Module.symvers-"${KERNEL_VERSION}" Module.symvers
+sudo ln -s config-"${KERNEL_VERSION}" config
+
+# % Create kernel header symlink
+sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/build 
+sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/source
+sudo ln -s /usr/src/rpi-linux-"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/build
+sudo ln -s /usr/src/rpi-linux-"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
+cd /
 
 # % Add updated mesa repository for video driver support
-add-apt-repository ppa:ubuntu-x-swat/updates -y
+add-apt-repository ppa:theremote/ppa-ubuntu-raspi4 -yn
+
+# % Add updated mesa repository for video driver support
+add-apt-repository ppa:ubuntu-x-swat/updates -yn
 
 # % Add Raspberry Pi Userland repository
-add-apt-repository ppa:ubuntu-raspi2/ppa -y
+add-apt-repository ppa:ubuntu-raspi2/ppa -yn
 
 # % Hold Ubuntu packages that will break booting from the Pi 4
 apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2
@@ -577,11 +580,12 @@ apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 
 # % Remove ureadahead, does not support arm and makes our bootup unclean when checking systemd status
 apt remove ureadahead libnih1
 
-# % Install wireless tools and bluetooth
+# % Install wireless tools and bluetooth (wireless-tools, iw, rfkill, bluez)
 # % Install Raspberry Pi userland utilities via libraspberrypi-bin (vcgencmd, etc.)
 # % Install haveged - prevents low entropy issues from making the Pi take a long time to start up
 # % Install raspi-config dependencies (libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils)
-apt update && apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils -y && apt dist-upgrade -y
+# % Install dependencies to build Pi modules (build-essential bc bison flex libssl-dev)
+apt update && apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential bc bison flex libssl-dev -y && apt dist-upgrade -y
 
 # % Install raspi-config utility
 wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191021_all.deb"
@@ -608,6 +612,9 @@ apt autoremove -y && apt clean && apt autoclean
 
 EOF
 echo "The chroot container has exited"
+
+# % Clean up after ourselves and remove qemu static binary
+sudo rm -f /mnt/usr/bin/qemu-aarch64-static
 
 # % Set regulatory crda to enable 5 Ghz wireless
 sudo mkdir -p /mnt/etc/default
