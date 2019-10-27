@@ -303,7 +303,7 @@ cp --recursive --update --archive --no-preserve=ownership ~/firmware-nonfree/* ~
 cp --recursive --update --archive --no-preserve=ownership ~/firmware-raspbian/* ~/firmware-build
 sudo rm -rf ~/firmware-build/.git 
 sudo rm -rf ~/firmware-build/.github
-#sudo chown -R root:root ~/firmware-build 
+
 
 # BUILD KERNEL
 cd ~
