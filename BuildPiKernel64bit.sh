@@ -6,7 +6,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="14"
+IMAGE_VERSION="15"
 
 TARGET_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img.xz"
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -564,9 +564,6 @@ sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/source
 sudo ln -s /usr/src/rpi-linux-"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/build
 sudo ln -s /usr/src/rpi-linux-"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
 cd /
-
-# % Add updated mesa repository for video driver support
-add-apt-repository ppa:theremote/ppa-ubuntu-raspi4 -yn
 
 # % Add updated mesa repository for video driver support
 add-apt-repository ppa:ubuntu-x-swat/updates -yn
