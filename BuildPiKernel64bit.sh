@@ -283,7 +283,8 @@ if [ ! -d "firmware-nonfree" ]; then
   git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree --depth 1
 else
   cd firmware-nonfree
-  git pull
+  git fetch --all
+  git reset --hard origin/master
 fi
 
 # GET FIRMWARE
@@ -292,7 +293,8 @@ if [ ! -d "firmware" ]; then
   git clone https://github.com/raspberrypi/firmware firmware --depth 1
 else
   cd firmware
-  git pull
+  git fetch --all
+  git reset --hard origin/master
 fi
 
 # MAKE FIRMWARE BUILD DIR

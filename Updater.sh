@@ -13,7 +13,8 @@ function Update {
         cd .updates
         if [ -d "Ubuntu-Server-raspi4-unofficial" ]; then
             cd Ubuntu-Server-raspi4-unofficial
-            git pull
+            git fetch --all
+            git reset --hard origin/master
             cd ..
         else
             git clone https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial.git
