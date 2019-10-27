@@ -19,23 +19,23 @@ else
     git clone https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial.git
 fi
 
-UpdatesHashOld=$(sha1sum "../Updater.sh")
-UpdatesHashNew=$(sha1sum "Ubuntu-Server-raspi4-unofficial/Updater.sh")
+# Check if Updater.sh has been updated
+UpdatesHashOld=$(sha1sum "../Updater.sh" | cut -d" " -f1)
+UpdatesHashNew=$(sha1sum "Ubuntu-Server-raspi4-unofficial/Updater.sh" | cut -d" " -f1)
 if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
     echo "Updater has update available.  Updating now ..."
     rm -f ../Updater.sh
     cp -f Ubuntu-Server-raspi4-unofficial/Updater.sh ../Updater.sh
+    chmod +x ../Updater.sh
     /bin/bash ../Updater.sh
     return 1
 fi
 
+# Find currently installed and latest release
 LatestRelease=$(grep "IMAGE_VERSION=" .updates/Ubuntu-Server-raspi4-unofficial/BuildPiKernel64bit.sh | cut -d= -f2 | xargs)
 CurrentRelease="0"
-
-# Check what our last installed update release was
-if [ -e ".lastupdate" ]; then
-    read -r CurrentRelease < ".lastupdate"
-    
+if [ -e "/etc/imagerelease" ]; then
+    read -r CurrentRelease < /etc/imagerelease
 fi
 
 if [[ "$LatestRelease" == "$CurrentRelease" ]]; then
@@ -60,8 +60,9 @@ else
         return 1
     fi
 
-    echo "Extracing update package ..."
+    echo "Extracting update package ..."
     tar -xf updates.tar.gz
+    rm -f updates.tar.gz
 
     echo "Copying updates to rootfs ..."
     sudo cp --verbose --archive --no-preserve=ownership updates/rootfs/* /mnt
@@ -74,7 +75,7 @@ else
     sudo update-initramfs -u
 
     # Save our new updated release to .lastupdate file
-    echo "$LatestRelease" > .lastupdate
+    sudo echo "$LatestRelease" > /etc/imgrelease
 
     echo "Update completed!  Please reboot your system."
 fi

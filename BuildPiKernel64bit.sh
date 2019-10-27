@@ -678,6 +678,9 @@ fi
 exit 0
 EOF
 
+# % Store current release in home folder
+sudo echo "$IMAGE_VERSION" > /mnt/etc/imgrelease
+
 # Run the after clean function
 AfterCleanIMG
 
