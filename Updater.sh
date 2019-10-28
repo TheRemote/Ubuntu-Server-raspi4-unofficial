@@ -30,12 +30,12 @@ function Update {
     UpdatesHashOld=$(sha1sum "Updater.sh" | cut -d" " -f1 | xargs)
     UpdatesHashNew=$(sha1sum ".updates/Ubuntu-Server-raspi4-unofficial/Updater.sh" | cut -d" " -f1 | xargs)
 
-    if [[ "$UpdatesHashOld" -ne "$UpdatesHashNew" ]]; then
+    if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
         echo "Updater has update available.  Updating now ..."
         rm -f Updater.sh
         cp -f .updates/Ubuntu-Server-raspi4-unofficial/Updater.sh Updater.sh
         chmod +x Updater.sh
-        exec $(readlink -f "$0")
+        exec "$0"
         return 1
     fi
 
@@ -47,7 +47,7 @@ function Update {
         read -r CurrentRelease < /etc/imagerelease
     fi
 
-    if [[ "$LatestRelease" -ne "$CurrentRelease" ]]; then
+    if [ "$LatestRelease" == "$CurrentRelease" ]; then
         echo "No updates are currently available!"
         return 0
     else
@@ -92,3 +92,4 @@ function Update {
 }
 
 Update
+exit
