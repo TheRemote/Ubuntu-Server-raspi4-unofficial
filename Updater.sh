@@ -41,9 +41,11 @@ function Update {
         exit
     fi
 
+    echo "Updater is up to date.  Checking system ..."
+
     # Find currently installed and latest release
     cd .updates
-    LatestRelease="$(grep IMAGE_VERSION= | cut -d= -f2 | xargs)"
+    LatestRelease="$(grep IMAGE_VERSION= Ubuntu-Server-raspi4-unofficial/Updater.sh | cut -d= -f2 | xargs)"
     CurrentRelease="0"
     if [ -e "/etc/imagerelease" ]; then
         read -r CurrentRelease < /etc/imagerelease
