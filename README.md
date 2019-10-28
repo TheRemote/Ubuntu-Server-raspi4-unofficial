@@ -27,9 +27,9 @@ This unofficial Ubuntu image is a compilation of all the latest knowledge/firmwa
 <h2>Updates</h2>
 First and foremost all of your updates will be coming from Ubuntu directly in apt as it would with any official image.  The only things set on package hold (using apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2) to prevent them from overwriting the firmware already on the image.  <br>
 <br>
-If you wish, you may apt-mark unhold those same packages and you will be 100% official Ubuntu.  The firmware is old right now so you will probably have issues, but presumably at some point the firmware will be backported for 18.04.3 and they'll be safe to use on the Pi 4 but it may take some time.
+If you wish, you may apt-mark unhold those same packages and you will be 100% official Ubuntu.  The firmware is old right now so you will probably have issues, but presumably at some point the firmware will be backported for 18.04.3 and they'll be safe to use on the Pi 4 but it may take some time.<br>
 <br>
-Updates to the firmware and fixes to common problems will be provided as long as there is interest.  <br>
+Updates to the firmware and fixes to common problems will be provided as long as there is interest.<br>
 <br>
 I expect at some point Ubuntu will backport 18.04.3 back to LTS as it is their long term release but only they know how long tat might take!  In the mean time I will do some short term updates of firmware/fixes/kernels/etc. and when Ubuntu's repositories get working firmware you will switch back to their firmware.<br>
 <br>
@@ -37,7 +37,9 @@ I have also included an updater that will give you the latest kernel/firmware/mo
 If Ubuntu's 18.04.3 update servers get working firmware for the Raspberry Pi 4 I will change the update script to remove the apt-mark holds on the Raspberry Pi firmware package in apt and close the project down (leaving this here for people to learn from to hack an unsupported device into their own distros, or until I do it again on the next Pi release!)<br>
 <br>
 <h2>Building Image Yourself</h2>
-I have included both the script to create the image yourself (BuildPiKernel64bit.sh) using the official images as a base.  Binary releases are also available as a preinstalled image (available in the "Releases" section at the top of this page) that you can download and write to a SD card without building anything yourself.  Note that the script is more of a process and not one that you can just clone and use.  Please read through it if you want to build the image as there are lines commented that you will want read if you are building from scratch.<br>
+I have included both the script to create the image yourself (BuildPiKernel64bit.sh) using the official images as a base.  Binary releases are also available as a preinstalled image (available in the "Releases" section at the top of this page) that you can download and write to a SD card without building anything yourself.<br>
+<br>
+Note that the script is more of a process and not one that you can just clone and use.  Please read through it if you want to build the image as there are lines commented that you will want read if you are building from scratch.<br>
 <br>
 The idea is that with the build script and the kernel source code built directly into the IMG file (/usr/src/rpi-linux-*) you don't need me to personally update it for you and customize every kernel flag for you or even plan on me being around in the future.  The kernel is just the plain Raspbian 4.19.y kernel source built directly from Git (see build script).  You have all the tools you need to change kernel flags and recompile, build kernel modules, and really do anything that I can do now.  This whole page is a set of tools and a process to let you customize if you need to.<br>
 <br>
