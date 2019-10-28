@@ -45,10 +45,10 @@ function Update {
 
     # Find currently installed and latest release
     cd .updates
-    LatestRelease=$(cat "Ubuntu-Server-raspi4-unofficial/BuildPiKernel64bit.sh" | grep IMAGE_VERSION= | cut -d= -f2 | xargs)
+    LatestRelease=$(cat "Ubuntu-Server-raspi4-unofficial/BuildPiKernel64bit.sh" | grep "IMAGE_VERSION=" | cut -d"=" -f2 | xargs)
     CurrentRelease="0"
     if [ -e "/etc/imagerelease" ]; then
-        read -r CurrentRelease < /etc/imagerelease
+        read -r CurrentRelease < "/etc/imagerelease"
     fi
 
     if [ "$LatestRelease" == "$CurrentRelease" ]; then
@@ -59,7 +59,6 @@ function Update {
 
         echo -n "Update now? (y/n)"
         read answer
-        echo $answer
         if [ "$answer" == "${answer#[Yy]}" ]; then
             echo "Update has been aborted"
             exit
