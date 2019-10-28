@@ -65,17 +65,17 @@ else
     fi
     
     echo "Downloading update package ..."
-    if [ -e "updates.tar.gz" ]; then rm -f "updates.tar.gz"; fi
-    curl --location "https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/releases/download/v${LatestRelease}/updates.tar.gz" --output "updates.tar.gz"
-    if [ ! -e "updates.tar.gz" ]; then
+    if [ -e "updates.tar.xz" ]; then rm -f "updates.tar.xz"; fi
+    curl --location "https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/releases/download/v${LatestRelease}/updates.tar.xz" --output "updates.tar.xz"
+    if [ ! -e "updates.tar.xz" ]; then
         echo "Update has failed to download -- please try again later"
         exit
     fi
 
     # Download was successful, extract and copy updates
     echo "Extracting update package ..."
-    tar -xf "updates.tar.gz"
-    rm -f "updates.tar.gz"
+    tar -xf "updates.tar.xz"
+    rm -f "updates.tar.xz"
 
     if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
         echo "Copying updates to rootfs ..."
