@@ -65,9 +65,9 @@ else
     fi
     
     echo "Downloading update package ..."
-    if [ -e "updates.tar.xz" ]; then rm -f "updates.tar.xz"; fi
-    curl --location "https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/releases/download/v${LatestRelease}/updates.tar.xz" --output "updates.tar.xz"
-    if [ ! -e "updates.tar.xz" ]; then
+    if [ -e "updates.tar.gz" ]; then rm -f "updates.tar.gz"; fi
+    curl --location "https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/releases/download/v${LatestRelease}/updates.tar.gz" --output "updates.tar.gz"
+    if [ ! -e "updates.tar.gz" ]; then
         echo "Update has failed to download -- please try again later"
         exit
     fi
