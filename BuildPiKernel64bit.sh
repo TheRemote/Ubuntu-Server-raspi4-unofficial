@@ -76,6 +76,8 @@ function MountIMGPartitions {
   echo "Mounting partitions"
   # % Mount the rootfs on /mnt (/)
   sudo mount "/dev/mapper/${1}p2" /mnt
+
+  sudo rm /mnt/boot/firmware/*
  
   # % Mount the bootfs on /mnt/boot/firmware (/boot/firmware)
   sudo mount "/dev/mapper/${1}p1" /mnt/boot/firmware
@@ -166,9 +168,9 @@ function BeforeCleanIMG {
   sudo rm -rf /mnt/usr/src/*
   sudo rm -rf /mnt/usr/lib/linux-firmware-raspi2
 
-  sudo rm -rf /mnt/var/log/*.gz 
+  sudo rm -rf /mnt/var/log/*.gz /mnt/var/log/*.log*
   sudo rm -rf /mnt/var/lib/initramfs-tools/*
-  sudo rm -rf /mnt/var/lib/apt/ports* /mnt/var/lib/apt/*InRelease /mnt/var/lib/apt/*-en /mnt/var/lib/apt/*Packages
+  sudo rm -rf /mnt/var/lib/apt/lists/ports* /mnt/var/lib/apt/lists/*InRelease /mnt/var/lib/apt/lists/*-en /mnt/var/lib/apt/lists/*Packages
 
   # % Remove flash-kernel hooks to prevent firmware updater from overriding our custom firmware
   sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
@@ -185,8 +187,10 @@ function BeforeCleanIMG {
   # Clear Python cache
   sudo find /mnt -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 
+  # Remove any crash files generated
   sudo rm -rf /mnt/var/crash/*
   #sudo rm -rf /mnt/var/run/*
+  sudo rm -rf /mnt/root/*
 
   sync; sync
   sleep "$SLEEP_LONG"
@@ -198,13 +202,15 @@ function AfterCleanIMG {
   # Clear Python cache
   sudo find /mnt -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 
-  # % Remove any crash files generated
+  # Remove any crash files generated
   sudo rm -rf /mnt/var/crash/*
   #sudo rm -rf /mnt/var/run/*
 
+  sudo rm -rf /mnt/root/*
+
   # % Clear apt cache
-  sudo rm -rf /mnt/var/lib/apt/ports* /mnt/var/lib/apt/*InRelease /mnt/var/lib/apt/*-en /mnt/var/lib/apt/*Packages
-  
+  sudo rm -rf /mnt/var/lib/apt/lists/ports* /mnt/var/lib/apt/lists/*InRelease /mnt/var/lib/apt/lists/*-en /mnt/var/lib/apt/lists/*Packages
+
   sync; sync
   sleep "$SLEEP_LONG"
 }
@@ -331,8 +337,8 @@ if [ ! -d "rpi-linux" ]; then
   rm -f conform_config_jamesachambers.sh
 
   # % This pulls the latest config from the repository -- if building yourself/customizing comment out
-  #rm -f .config
-  #wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
+  rm -f .config
+  wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
 
   # % Run prepare to register all our .config changes
   cd ~/rpi-linux
@@ -507,7 +513,7 @@ sync; sync
 sleep "$SLEEP_SHORT"
 
 # % Remove initramfs actions for invalid existing kernels, then create a new link to our new custom kernel
-sha1sum=$(sha1sum /mnt/boot/vmlinux)
+sha1sum=$(sha1sum /mnt/boot/vmlinux-"${KERNEL_VERSION}")
 sudo mkdir -p /mnt/var/lib/initramfs-tools
 echo "$sha1sum  /boot/vmlinux-${KERNEL_VERSION}" | sudo tee -a /mnt/var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
 
@@ -580,11 +586,11 @@ apt remove ureadahead libnih1
 # % Install haveged - prevents low entropy issues from making the Pi take a long time to start up
 # % Install raspi-config dependencies (libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils)
 # % Install dependencies to build Pi modules (git build-essential bc bison flex libssl-dev)
-apt update && apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y && apt dist-upgrade -y
+apt update && apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils git bc bison flex libssl-dev -y && apt dist-upgrade -y
 
 # % Install raspi-config utility
 rm -f "$RASPICFG_PACKAGE"
-wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/{$RASPICFG_PACKAGE}"
+wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/${RASPICFG_PACKAGE}"
 dpkg -i "$RASPICFG_PACKAGE"
 rm -f "raspi-config_20191021_all.deb"
 sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
@@ -678,7 +684,8 @@ EOF
 sudo chmod +x /mnt/etc/rc.local
 
 # % Store current release in home folder
-sudo echo "$IMAGE_VERSION" > /mnt/etc/imgrelease
+sudo touch /mnt/etc/imgrelease
+echo "$IMAGE_VERSION" | sudo tee /mnt/etc/imgrelease >/dev/null;
 
 # Run the after clean function
 AfterCleanIMG

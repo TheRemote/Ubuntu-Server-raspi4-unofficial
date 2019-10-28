@@ -153,7 +153,7 @@ sudo chmod +x /etc/rc.local
 # % Install raspi-config utility
 echo "Updating raspi-config ..."
 rm -f "$RASPICFG_PACKAGE"
-wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/{$RASPICFG_PACKAGE}"
+wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/${RASPICFG_PACKAGE}"
 dpkg -i "$RASPICFG_PACKAGE"
 rm -f "raspi-config_20191021_all.deb"
 sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
