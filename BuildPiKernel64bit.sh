@@ -210,7 +210,7 @@ function AfterCleanIMG {
 
 # INSTALL DEPENDENCIES
 echo "Installing dependencies"
-sudo apt-get install build-essential git curl unzip libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex libncurses-dev kpartx qemu-user-static libguestfs-tools -y
+sudo apt-get install git curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex kpartx qemu-user-static -y
 
 PrepareIMG
 
@@ -316,9 +316,6 @@ if [ ! -d "rpi-linux" ]; then
   git checkout origin/rpi-4.19.y
   rm -rf .git .git* .tmp_versions
 
-  # % Save copy of built source tree (needed to compile kernel modules)
-  #cp --recursive --update --archive --no-preserve=ownership ~/rpi-linux ~/rpi-source
-
   # CONFIGURE / MAKE
   PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
 
@@ -346,10 +343,6 @@ if [ ! -d "rpi-linux" ]; then
   # % Build kernel modules
   PATH=$PATH:$TOOLCHAIN/bin make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
   depmod --basedir . "${KERNEL_VERSION}"
-
-  # % Copy Module.symvers and .config to source tree
-  #cp -f --archive --no-preserve=ownership Module.symvers ~/rpi-source
-  #cp -f --archive --no-preserve=ownership .config ~/rpi-source
 
   echo `cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 fi
@@ -544,10 +537,8 @@ sudo chroot /mnt /bin/bash << EOF
 # % Pull kernel version from /lib/modules folder
 export KERNEL_VERSION="$(ls /lib/modules)"
 
-# % Fix /lib/firmware permission and symlink
+# % Fix /lib/firmware permission and symlink (fixes Bluetooth and firmware issues)
 chown -R root:root /lib
-
-# % Add symbolic link from /etc/firmware to /lib/firmware (fixes Bluetooth)
 ln -s /lib/firmware /etc/firmware
 
 # % Create kernel and component symlinks
@@ -583,8 +574,8 @@ apt remove ureadahead libnih1
 # % Install Raspberry Pi userland utilities via libraspberrypi-bin (vcgencmd, etc.)
 # % Install haveged - prevents low entropy issues from making the Pi take a long time to start up
 # % Install raspi-config dependencies (libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils)
-# % Install dependencies to build Pi modules (build-essential bc bison flex libssl-dev)
-apt update && apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential bc bison flex libssl-dev -y && apt dist-upgrade -y
+# % Install dependencies to build Pi modules (git build-essential bc bison flex libssl-dev)
+apt update && apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y && apt dist-upgrade -y
 
 # % Install raspi-config utility
 wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191021_all.deb"
@@ -656,7 +647,6 @@ EOF
 
 # % Startup tweaks to fix bluetooth and sound issues
 sudo touch /mnt/etc/rc.local
-sudo chmod +x /mnt/etc/rc.local
 cat << EOF | sudo tee /mnt/etc/rc.local
 #!/bin/bash
 #
@@ -679,6 +669,7 @@ fi
 
 exit 0
 EOF
+sudo chmod +x /mnt/etc/rc.local
 
 # % Store current release in home folder
 sudo echo "$IMAGE_VERSION" > /mnt/etc/imgrelease
