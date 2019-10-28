@@ -5,10 +5,10 @@
 # https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
 
 # Add updated mesa repository for video driver support
-add-apt-repository ppa:ubuntu-x-swat/updates -yn
+sudo add-apt-repository ppa:ubuntu-x-swat/updates -yn
 
 # Add Raspberry Pi Userland repository
-add-apt-repository ppa:ubuntu-raspi2/ppa -yn
+sudo add-apt-repository ppa:ubuntu-raspi2/ppa -yn
 
 # Install dependencies
 sudo apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
@@ -103,8 +103,7 @@ else
     exit
 fi
 
-# % Fix /lib/firmware permission and symlink (fixes Bluetooth and firmware issues)
-chown -R root:root /lib
+# % Fix /lib/firmware symlink
 ln -s /lib/firmware /etc/firmware
 
 # % Fix WiFi
