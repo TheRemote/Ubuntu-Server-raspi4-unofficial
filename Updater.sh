@@ -30,13 +30,15 @@ function Update {
     UpdatesHashOld=$(sha1sum "Updater.sh" | cut -d" " -f1 | xargs)
     UpdatesHashNew=$(sha1sum ".updates/Ubuntu-Server-raspi4-unofficial/Updater.sh" | cut -d" " -f1 | xargs)
 
-    if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
+    echo "$UpdatesHashOld - $UpdatesHashNew"
+    
+    if [ "$UpdatesHashOld" == "$UpdatesHashNew" ]; then
         echo "Updater has update available.  Updating now ..."
         rm -f Updater.sh
         cp -f .updates/Ubuntu-Server-raspi4-unofficial/Updater.sh Updater.sh
         chmod +x Updater.sh
-        exec "$0"
-        return 1
+        exec "Updater.sh"
+        exit
     fi
 
     # Find currently installed and latest release
@@ -49,7 +51,7 @@ function Update {
 
     if [ "$LatestRelease" == "$CurrentRelease" ]; then
         echo "No updates are currently available!"
-        return 0
+        exit
     else
         echo "Release v$LatestRelease is available!"
 
@@ -58,7 +60,7 @@ function Update {
         echo $answer
         if [ "$answer" == "${answer#[Yy]}" ]; then
             echo "Update has been aborted"
-            return 1
+            exit
         fi
         
         echo "Downloading update package ..."
@@ -66,7 +68,7 @@ function Update {
         curl --location "https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/releases/download/v$LatestRelease/updates.tar.xz" --output updates.tar.xz
         if [ ! -e "updates.tar.xz" ]; then
             echo "Update has failed to download -- please try again later"
-            return 1
+            exit
         fi
 
         # Download was successful, extract and copy updates
