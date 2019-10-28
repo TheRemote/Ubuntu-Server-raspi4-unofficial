@@ -1,3 +1,4 @@
+<h2>Overview</h2>
 This is a Raspberry Pi 4 compatible Ubuntu 18.04.3 preinstalled server for the new (and currently unsupported officially in the 18.04 LTS series) Raspberry Pi 4.<br>
 <br>
 For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/ including a walkthrough and lots of comments / discussion.<br>
@@ -7,7 +8,8 @@ for the 18.04 LTS release that will still be supported until a whopping April 20
 <br>
 The early official 19.10 release seems to be having a lot of issues particularly with USB devices (I couldn't get my USB devices to connect to it either during initial testing).  I also saw a lot of warnings in the log files especially with a full desktop installed.  I personally am not concerned about these early hardware issues and I expect those to improve quickly but be advised just because it's an official release doesn't mean it's rock solid stable yet!<br>
 <br>
-This unofficial Ubuntu image is a compilation of all the latest knowledge/firmware/fixes for running a 64 bit operating system on the new Raspberry Pi 4.  Here are some of the highlights:<br>
+This unofficial Ubuntu image is a compilation of all the latest knowledge/firmware/fixes for running a 64 bit operating system on the new Raspberry Pi 4.  If you find problems report it in the issues section and I and others will assist!<br>
+<h2>Highlights</h2>
 <ul>
     <li>Fully 64-bit kernel and userspace environment</li>
     <li>Updates normally via apt dist-upgrade from the official Ubuntu repositories</li>
@@ -23,23 +25,29 @@ This unofficial Ubuntu image is a compilation of all the latest knowledge/firmwa
     <li>Update script provided to update kernels/firmware/modules</li>
 </ul>
 <br>
-Updates will be provided as long as there is interest.  I expect at some point Ubuntu will backport 18.04.3 back to LTS as it is their long term release but only they know how long tat might take!  If Ubuntu's 18.04.3 update servers get working firmware for the Raspberry Pi 4 I will change the update script to remove the apt-mark holds on the Raspberry Pi firmware package in apt and close the project down (leaving this here for people to learn from to hack an unsupported device into their own distros, or until I do it again on the next Pi release!)<br>
+<h2>Updates</h2>
+First and foremost all of your updates will be coming from Ubuntu directly in apt as it would with any official image.  The only things set on package hold (using apt-mark hold )
+Updates to the firmware and fixes to common problems will be provided as long as there is interest.  I expect at some point Ubuntu will backport 18.04.3 back to LTS as it is their long term release but only they know how long tat might take!  If Ubuntu's 18.04.3 update servers get working firmware for the Raspberry Pi 4 I will change the update script to remove the apt-mark holds on the Raspberry Pi firmware package in apt and close the project down (leaving this here for people to learn from to hack an unsupported device into their own distros, or until I do it again on the next Pi release!)<br>
 <br>
 I have included both the script to create the image yourself (BuildPiKernel64bit.sh) using the official images as a base.  Binary releases are also available as a preinstalled image (available in the "Releases" section at the top of this page) that you can download and write to a SD card without building anything yourself.  Note that the script is more of a process and not one that you can just clone and use.  Please read through it if you want to build the image as there are lines commented that you will want read if you are building from scratch.<br>
 <br>
+The idea is that with the build script and the kernel source code built directly into the IMG file (/usr/src/rpi-linux-*) you don't need me to personally update it for you and customize every kernel flag for you or even plan on me being around in the future.  The kernel is just the plain Raspbian 4.19.y kernel source built directly from Git (see build script).  You have all the tools you need to change kernel flags and recompile, build kernel modules, and really do anything that I can do now.  This whole page is a set of tools and a process to let you customize if you need to.<br>
+<br>
+If you come across a problem definitely open a GitHub issue or drop by the jamesachambers.com page linked at the top.  I can add these issues as fixes and include them in the firmware/kernel updates provided through Updater.sh
+<br>
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
-<br>
-<strong>October 27th 2019 - v15 Official Release</strong><br>
+<h2>Update History</h2>
+<strong>October 28th 2019 - v15 Official Release</strong><br>
 -Script to update between releases is finally ready, and with that I am taking this out of pre-release!<br>
 -To get the update script use the following commands:<br>
 <br>
 wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/Updater.sh<br>
 chmod +x Updater.sh<br>
-./Updater.sh<br>
+sudo ./Updater.sh<br>
 <br>
 -You can update from any pre-release release version.  Please make a backup first!<br>
--The updater is located at /home/Updater.sh on v15 and up (to run type bash /home/Updater.sh)<br>
+-The updater is located at /home/Updater.sh on v15 and up (to run type sudo bash /home/Updater.sh)<br>
 <br>
 <strong>October 26th 2019 - v14 Desktop Pre-Release</strong><br>
 -Kernel source tree and headers are now included in the image!<br>
