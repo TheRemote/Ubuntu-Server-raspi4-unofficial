@@ -4,6 +4,9 @@
 # https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/
 # https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
 
+# Configuration
+RASPICFG_PACKAGE="raspi-config_20191021_all.deb"
+
 # Add updated mesa repository for video driver support
 sudo add-apt-repository ppa:ubuntu-x-swat/updates -yn
 
@@ -58,7 +61,7 @@ if [ -e "/etc/imgrelease" ]; then
 fi
 
 if [ "$LatestRelease" == "$CurrentRelease" ]; then
-    echo "No updates are currently available!"
+    echo "You have release ${LatestRelease}. No updates are currently available!"
     exit
 fi
 
@@ -146,5 +149,24 @@ fi
 exit 0
 EOF
 sudo chmod +x /etc/rc.local
+
+# % Install raspi-config utility
+echo "Updating raspi-config ..."
+rm -f "$RASPICFG_PACKAGE"
+wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/{$RASPICFG_PACKAGE}"
+dpkg -i "$RASPICFG_PACKAGE"
+rm -f "raspi-config_20191021_all.deb"
+sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
+sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/bin/raspi-config
+sed -i "s:armhf:arm64:g" /usr/bin/raspi-config
+sed -i "s:/boot/overlays:/boot/firmware/overlays:g" /usr/bin/raspi-config
+sed -i "s:/boot/start:/boot/firmware/start:g" /usr/bin/raspi-config
+sed -i "s:/boot/arm:/boot/firmware/arm:g" /usr/bin/raspi-config
+sed -i "s:/boot :/boot/firmware :g" /usr/bin/raspi-config
+sed -i "s:\\/boot\.:\\/boot\\\/firmware\.:g" /usr/bin/raspi-config
+sed -i "s:dtparam i2c_arm=$SETTING:dtparam -d /boot/firmware/overlays i2c_arm=$SETTING:g" /usr/bin/raspi-config
+sed -i "s:dtparam spi=$SETTING:dtparam -d /boot/firmware/overlays spi=$SETTING:g" /usr/bin/raspi-config
+sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-pre
+sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-post
 
 echo "Update completed!  Please reboot your system."

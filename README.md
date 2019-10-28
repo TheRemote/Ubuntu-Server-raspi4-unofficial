@@ -1,4 +1,4 @@
-This is an initial testing pre-release of a unofficial build of Ubuntu Server 18.04.3 preinstalled server for the new (and currently unsupported officially) Raspberry Pi 4.<br>
+This is a Raspberry Pi 4 compatible Ubuntu 18.04.3 preinstalled server for the new (and currently unsupported officially in the 18.04 LTS series) Raspberry Pi 4.<br>
 <br>
 For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/ including a walkthrough and lots of comments / discussion.<br>
 <br>
@@ -20,11 +20,26 @@ This unofficial Ubuntu image is a compilation of all the latest knowledge/firmwa
     <li>5 GHz WiFi channel support</li>
     <li>Working Bluetooth and WiFi</li>
     <li>KVM virtualization support</li>
+    <li>Update script provided to update kernels/firmware/modules</li>
 </ul>
+<br>
+Updates will be provided as long as there is interest.  I expect at some point Ubuntu will backport 18.04.3 back to LTS as it is their long term release but only they know how long tat might take!  If Ubuntu's 18.04.3 update servers get working firmware for the Raspberry Pi 4 I will change the update script to remove the apt-mark holds on the Raspberry Pi firmware package in apt and close the project down (leaving this here for people to learn from to hack an unsupported device into their own distros, or until I do it again on the next Pi release!)<br>
 <br>
 I have included both the script to create the image yourself (BuildPiKernel64bit.sh) using the official images as a base.  Binary releases are also available as a preinstalled image (available in the "Releases" section at the top of this page) that you can download and write to a SD card without building anything yourself.  Note that the script is more of a process and not one that you can just clone and use.  Please read through it if you want to build the image as there are lines commented that you will want read if you are building from scratch.<br>
 <br>
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
+<br>
+<br>
+<strong>October 27th 2019 - v15 Official Release</strong><br>
+-Script to update between releases is finally ready, and with that I am taking this out of pre-release!<br>
+-To get the update script use the following commands:<br>
+<br>
+wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/Updater.sh<br>
+chmod +x Updater.sh<br>
+./Updater.sh<br>
+<br>
+-You can update from any pre-release release version.  Please make a backup first!<br>
+-The updater is located at /home/Updater.sh on v15 and up (to run type bash /home/Updater.sh)<br>
 <br>
 <strong>October 26th 2019 - v14 Desktop Pre-Release</strong><br>
 -Kernel source tree and headers are now included in the image!<br>

@@ -6,7 +6,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="14"
+IMAGE_VERSION="15"
 
 TARGET_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img.xz"
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -14,6 +14,7 @@ SOURCE_RELEASE="18.04.3"
 SOURCE_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
 SOURCE_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img"
 RASPBIAN_IMG="2019-09-26-raspbian-buster-lite.img"
+RASPICFG_PACKAGE="raspi-config_20191021_all.deb"
 
 export SLEEP_SHORT="0.1"
 export SLEEP_LONG="1"
@@ -330,8 +331,8 @@ if [ ! -d "rpi-linux" ]; then
   rm -f conform_config_jamesachambers.sh
 
   # % This pulls the latest config from the repository -- if building yourself/customizing comment out
-  rm .config
-  wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
+  #rm -f .config
+  #wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
 
   # % Run prepare to register all our .config changes
   cd ~/rpi-linux
@@ -396,6 +397,7 @@ cd ~
 sudo rm -rf ~/updates
 mkdir -p ~/updates/bootfs/overlays
 mkdir -p ~/updates/rootfs/boot
+mkdir -p ~/updates/rootfs/home
 mkdir -p ~/updates/rootfs/lib/firmware
 mkdir -p ~/updates/rootfs/lib/modules/"${KERNEL_VERSION}"
 mkdir -p ~/updates/rootfs/usr/src/rpi-linux-"${KERNEL_VERSION}"
@@ -495,6 +497,9 @@ cp --archive --no-preserve=ownership ~/rpi-linux/arch/arm64/boot/Image ~/updates
 sync; sync
 sleep "$SLEEP_SHORT"
 
+# % Copy updater script into home folder
+sudo cp -f ~/Updater.sh ~/updates/rootfs/home/Updater.sh
+
 # % Copy bootfs and rootfs
 sudo cp --archive --no-preserve=ownership ~/updates/bootfs/* /mnt/boot/firmware
 sudo cp --archive --no-preserve=ownership ~/updates/rootfs/* /mnt
@@ -578,9 +583,10 @@ apt remove ureadahead libnih1
 apt update && apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y && apt dist-upgrade -y
 
 # % Install raspi-config utility
-wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191021_all.deb"
-dpkg -i "raspi-config_20191021_all.deb"
-rm "raspi-config_20191021_all.deb"
+rm -f "$RASPICFG_PACKAGE"
+wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/{$RASPICFG_PACKAGE}"
+dpkg -i "$RASPICFG_PACKAGE"
+rm -f "raspi-config_20191021_all.deb"
 sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
 sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/bin/raspi-config
 sed -i "s:armhf:arm64:g" /usr/bin/raspi-config
@@ -653,7 +659,7 @@ cat << EOF | sudo tee /mnt/etc/rc.local
 # rc.local
 #
 
-# % Fix crackling sound
+# Fix sound
 if [ -n "`which pulseaudio`" ]; then
   GrepCheck=$(cat /etc/pulse/default.pa | grep "load-module module-udev-detect tsched=0")
   if [ ! -n "$GrepCheck" ]; then
