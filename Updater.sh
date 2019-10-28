@@ -77,7 +77,7 @@ else
     tar -xf "updates.tar.gz"
     rm -f "updates.tar.gz"
 
-    if [ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]; then
+    if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
         echo "Copying updates to rootfs ..."
         sudo cp --verbose --archive --no-preserve=ownership "updates/rootfs/*" "/mnt"
 
