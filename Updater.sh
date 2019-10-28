@@ -17,14 +17,6 @@ sudo add-apt-repository ppa:ubuntu-raspi2/ppa -yn
 UpdatesHashOld=$(sha1sum "Updater.sh" | cut -d" " -f1 | xargs)
 UpdatesHashNew=$(sha1sum ".updates/Ubuntu-Server-raspi4-unofficial/Updater.sh" | cut -d" " -f1 | xargs)
 
-if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
-    echo "Updater has update available.  Updating now ..."
-    rm -f Updater.sh
-    cp -f .updates/Ubuntu-Server-raspi4-unofficial/Updater.sh Updater.sh
-    chmod +x Updater.sh
-    exec $(readlink -f "Updater.sh")
-    exit
-fi
 
 # Install dependencies
 sudo apt update && sudo apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
@@ -48,6 +40,16 @@ else
     git clone https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial.git
 fi
 cd ..
+
+
+if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
+    echo "Updater has update available.  Updating now ..."
+    rm -f Updater.sh
+    cp -f .updates/Ubuntu-Server-raspi4-unofficial/Updater.sh Updater.sh
+    chmod +x Updater.sh
+    exec $(readlink -f "Updater.sh")
+    exit
+fi
 
 echo "Updater is up to date.  Checking system ..."
 
