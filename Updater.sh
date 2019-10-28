@@ -11,7 +11,7 @@ add-apt-repository ppa:ubuntu-x-swat/updates -yn
 add-apt-repository ppa:ubuntu-raspi2/ppa -yn
 
 # Install dependencies
-sudo apt installwireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
+sudo apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
 
 echo "Checking for updates ..."
 
