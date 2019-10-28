@@ -27,8 +27,8 @@ function Update {
     cd ..
 
     # Check if Updater.sh has been updated
-    UpdatesHashOld=$(sha1sum "Updater.sh" | cut -d" " -f1)
-    UpdatesHashNew=$(sha1sum ".updates/Ubuntu-Server-raspi4-unofficial/Updater.sh" | cut -d" " -f1)
+    UpdatesHashOld=$(sha1sum "Updater.sh" | cut -d" " -f1 | xargs)
+    UpdatesHashNew=$(sha1sum ".updates/Ubuntu-Server-raspi4-unofficial/Updater.sh" | cut -d" " -f1 | xargs)
 
     if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
         echo "Updater has update available.  Updating now ..."
