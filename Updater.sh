@@ -12,6 +12,7 @@ sudo add-apt-repository ppa:ubuntu-raspi2/ppa -yn
 
 # Install dependencies
 sudo apt update && sudo apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
+sudo apt-get dist-upgrade -y
 
 echo "Checking for updates ..."
 
@@ -106,19 +107,19 @@ else
 fi
 
 # % Fix /lib/firmware symlink
-ln -s /lib/firmware /etc/firmware
+sudo ln -s /lib/firmware /etc/firmware
 
 # % Fix WiFi
 # % The Pi 4 version returns boardflags3=0x44200100
 # % The Pi 3 version returns boardflags3=0x48200100cd
-sudo sed -i "s:0x48200100:0x44200100:g" /mnt/lib/firmware/brcm/brcmfmac43455-sdio.txt
+sudo sed -i "s:0x48200100:0x44200100:g" /lib/firmware/brcm/brcmfmac43455-sdio.txt
 
 # % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
-sudo sed -i "s/ib_iser/#ib_iser/g" /mnt/lib/modules-load.d/open-iscsi.conf
-sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /mnt/lib/modules-load.d/open-iscsi.conf
+sudo sed -i "s/ib_iser/#ib_iser/g" /lib/modules-load.d/open-iscsi.conf
+sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /lib/modules-load.d/open-iscsi.conf
 
 # % Fix update-initramfs mdadm.conf warning
-sudo grep "ARRAY devices" /mnt/etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo tee -a /mnt/etc/mdadm/mdadm.conf >/dev/null;
+sudo grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo tee -a /etc/mdadm/mdadm.conf >/dev/null;
 
 # Startup tweaks to fix bluetooth and sound issues
 sudo touch /etc/rc.local
