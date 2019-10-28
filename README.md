@@ -48,7 +48,7 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <ul>
 <li>Script to update between releases is finally ready, and with that I am taking this out of pre-release!</li>
 <li>To get the update script use the following commands:</li>
-</li>
+<br>
 wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/Updater.sh<br>
 chmod +x Updater.sh<br>
 sudo ./Updater.sh<br>
