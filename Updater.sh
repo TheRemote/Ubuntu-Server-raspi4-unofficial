@@ -32,7 +32,7 @@ function Update {
 
     echo "$UpdatesHashOld - $UpdatesHashNew"
     
-    if [ "$UpdatesHashOld" == "$UpdatesHashNew" ]; then
+    if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
         echo "Updater has update available.  Updating now ..."
         rm -f Updater.sh
         cp -f .updates/Ubuntu-Server-raspi4-unofficial/Updater.sh Updater.sh
@@ -55,7 +55,7 @@ function Update {
         echo "No updates are currently available!"
         exit
     else
-        echo "Release v$LatestRelease is available!"
+        echo "Release v${LatestRelease} is available!"
 
         echo -n "Update now? (y/n)"
         read answer
@@ -66,7 +66,7 @@ function Update {
         
         echo "Downloading update package ..."
         if [ -e "updates.tar.xz" ]; then rm -f "updates.tar.xz"; fi
-        curl --location "https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/releases/download/v$LatestRelease/updates.tar.xz" --output updates.tar.xz
+        curl --location "https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/releases/download/v${LatestRelease}/updates.tar.xz" --output "updates.tar.xz"
         if [ ! -e "updates.tar.xz" ]; then
             echo "Update has failed to download -- please try again later"
             exit
@@ -78,17 +78,17 @@ function Update {
         rm -f updates.tar.gz
 
         echo "Copying updates to rootfs ..."
-        sudo cp --verbose --archive --no-preserve=ownership updates/rootfs/* /mnt
+        sudo cp --verbose --archive --no-preserve=ownership updates/rootfs/* /mnt 
 
         echo "Copying updates to bootfs ..."
         sudo cp --verbose --archive --no-preserve=ownership updates/bootfs/* /mnt/boot/firmware
 
         # Update initramfs so our new kernel and modules are picked up
         echo "Updating kernel and modules ..."
-        sudo update-initramfs -u
+        #sudo update-initramfs -u
 
         # Save our new updated release to .lastupdate file
-        sudo echo "$LatestRelease" > /etc/imgrelease
+        echo "$LatestRelease" | sudo tee -a /etc/imgrelease >/dev/null;
 
         echo "Update completed!  Please reboot your system."
     fi
