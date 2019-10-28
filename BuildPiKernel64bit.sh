@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-
+#!/bin/bash
+#
 # More information available at:
 # https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/
 # https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
