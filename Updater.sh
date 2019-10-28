@@ -11,7 +11,7 @@ sudo add-apt-repository ppa:ubuntu-x-swat/updates -yn
 sudo add-apt-repository ppa:ubuntu-raspi2/ppa -yn
 
 # Install dependencies
-sudo apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
+sudo apt update && sudo apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
 
 echo "Checking for updates ..."
 
@@ -36,8 +36,6 @@ cd ..
 UpdatesHashOld=$(sha1sum "Updater.sh" | cut -d" " -f1 | xargs)
 UpdatesHashNew=$(sha1sum ".updates/Ubuntu-Server-raspi4-unofficial/Updater.sh" | cut -d" " -f1 | xargs)
 
-echo "$UpdatesHashOld - $UpdatesHashNew"
-
 if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
     echo "Updater has update available.  Updating now ..."
     rm -f Updater.sh
@@ -54,8 +52,8 @@ cd .updates
 LatestRelease=$(cat "Ubuntu-Server-raspi4-unofficial/BuildPiKernel64bit.sh" | grep "IMAGE_VERSION=" | cut -d"=" -f2 | xargs)
 CurrentRelease="0"
 
-if [ -e "/etc/imagerelease" ]; then
-    read -r CurrentRelease < "/etc/imagerelease"
+if [ -e "/etc/imgrelease" ]; then
+    read -r CurrentRelease < "/etc/imgrelease"
 fi
 
 if [ "$LatestRelease" == "$CurrentRelease" ]; then
@@ -92,12 +90,16 @@ if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     echo "Copying updates to bootfs ..."
     sudo cp --verbose --archive --no-preserve=ownership updates/bootfs/* /boot/firmware
 
+    echo "Cleaning up downloaded files ..."
+    sudo rm -rf updates
+
     # Update initramfs so our new kernel and modules are picked up
     echo "Updating kernel and modules ..."
     sudo update-initramfs -u
 
     # Save our new updated release to .lastupdate file
-    echo "$LatestRelease" | sudo tee -a /etc/imgrelease >/dev/null;
+    sudo touch /etc/imgrelease
+    echo "$LatestRelease" | sudo tee /etc/imgrelease >/dev/null;
 else
     echo "Update has failed to extract.  Please try again later!"
     exit

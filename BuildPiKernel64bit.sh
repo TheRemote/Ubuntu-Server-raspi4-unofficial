@@ -210,7 +210,7 @@ function AfterCleanIMG {
 
 # INSTALL DEPENDENCIES
 echo "Installing dependencies"
-sudo apt-get install git curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex kpartx qemu-user-static -y
+sudo apt-get update && sudo apt-get install git curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex kpartx qemu-user-static -y
 
 PrepareIMG
 
