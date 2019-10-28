@@ -44,6 +44,7 @@ set_kernel_config CONFIG_CFS_BANDWIDTH y
 # Stream parsing
 set_kernel_config CONFIG_STREAM_PARSER y
 set_kernel_config CONFIG_BPF_STREAM_PARSER y
+set_kernel_config CONFIG_BPF_LIRC_MODE2 y
 
 # XDP sockets
 set_kernel_config CONFIG_XDP_SOCKETS y
@@ -56,6 +57,3 @@ set_kernel_config CONFIG_NF_TABLES_BRIDGE y
 
 # Enable ARM kernel workarounds
 set_kernel_config CONFIG_ARM64_ERRATUM_834220 y
-
-# LIRC Mode
-set_kernel_config CONFIG_BPF_LIRC_MODE2 y

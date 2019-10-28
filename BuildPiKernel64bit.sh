@@ -228,7 +228,7 @@ fi
 
 # % Extract and compact our source image from the xz if the source image isn't present
 if [ ! -f "$SOURCE_IMG" ]; then
-  xzcat "$SOURCE_IMGXZ" > "$SOURCE_IMG"
+  xzcat --threads=0 "$SOURCE_IMGXZ" > "$SOURCE_IMG"
   MountIMG "$SOURCE_IMG"
   MountIMGPartitions "${MOUNT_IMG}"
   BeforeCleanIMG
@@ -337,8 +337,8 @@ if [ ! -d "rpi-linux" ]; then
   rm -f conform_config_jamesachambers.sh
 
   # % This pulls the latest config from the repository -- if building yourself/customizing comment out
-  rm -f .config
-  wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
+  #rm -f .config
+  #wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
 
   # % Run prepare to register all our .config changes
   cd ~/rpi-linux
@@ -696,6 +696,16 @@ sudo fsck.ext4 -pfv "/dev/mapper/${MOUNT_IMG}p2"
 sudo fsck.fat -av "/dev/mapper/${MOUNT_IMG}p1"
 UnmountIMG "$TARGET_IMG"
 CompactIMG "$TARGET_IMG"
+
+# Compress xz file
+echo "Compressing final img.xz file ..."
+sleep "$SLEEP_SHORT"
+sudo rm -f "$TARGET_IMGXZ"
+xz -9 --extreme --force --keep --threads=0 "$TARGET_IMG"
+
+echo "Compressing updates.tar.gz ..."
+sudo rm -f ~/updates.tar.gz
+tar -cpJf updates.tar.xz updates/
 
 # Clean up build directory
 #sudo rm -rf updates firmware-build tmp
