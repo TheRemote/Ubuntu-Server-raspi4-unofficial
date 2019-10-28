@@ -79,10 +79,10 @@ else
 
     if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
         echo "Copying updates to rootfs ..."
-        sudo cp --verbose --archive --no-preserve=ownership "updates/rootfs/*" "/mnt"
+        sudo cp --verbose --archive --no-preserve=ownership updates/rootfs/* /
 
         echo "Copying updates to bootfs ..."
-        sudo cp --verbose --archive --no-preserve=ownership "updates/bootfs/*" "/mnt/boot/firmware"
+        sudo cp --verbose --archive --no-preserve=ownership updates/bootfs/* /boot/firmware
 
         # Update initramfs so our new kernel and modules are picked up
         echo "Updating kernel and modules ..."
