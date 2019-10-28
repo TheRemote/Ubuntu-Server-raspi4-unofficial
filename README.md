@@ -24,7 +24,6 @@ This unofficial Ubuntu image is a compilation of all the latest knowledge/firmwa
     <li>KVM virtualization support</li>
     <li>Update script provided to update kernels/firmware/modules</li>
 </ul>
-<br>
 <h2>Updates</h2>
 First and foremost all of your updates will be coming from Ubuntu directly in apt as it would with any official image.  The only things set on package hold (using apt-mark hold )
 Updates to the firmware and fixes to common problems will be provided as long as there is interest.  <br>
