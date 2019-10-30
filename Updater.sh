@@ -172,7 +172,7 @@ sudo netplan --debug apply
 
 # Add proposed apt archive
 cat << EOF | sudo tee /etc/apt/sources.list
-deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed restricted main multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed main restricted multiverse universe
 deb http://ports.ubuntu.com/ubuntu-ports bionic main restricted multiverse universe
 deb http://ports.ubuntu.com/ubuntu-ports bionic-security main restricted multiverse universe
 deb http://ports.ubuntu.com/ubuntu-ports bionic-updates main restricted multiverse universe
@@ -190,7 +190,7 @@ EOF
 echo "Updating raspi-config ..."
 sudo rm -f "raspi-config*.deb"
 sudo curl --location "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191021_all.deb" --output "raspi-config_20191021_all.deb"
-sudo dpkg -i "raspi-config*.deb"
+sudo dpkg -i "raspi-config_20191021_all.deb"
 sudo rm -f "raspi-config*.deb"
 sudo sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
 sudo sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/bin/raspi-config
