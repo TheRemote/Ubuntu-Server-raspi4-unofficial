@@ -4,8 +4,6 @@
 # https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/
 # https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
 
-# Configuration
-RASPICFG_PACKAGE="raspi-config_20191021_all.deb"
 
 # Add updated mesa repository for video driver support
 sudo add-apt-repository ppa:ubuntu-x-swat/updates -yn
@@ -113,6 +111,9 @@ else
     exit
 fi
 
+# % Add account to video group to allow access to vcgencmd and other userland utilities
+sudo usermod -aG video $SUDO_USER
+
 # % Fix /lib/firmware symlink
 sudo ln -s /lib/firmware /etc/firmware
 
@@ -182,9 +183,9 @@ EOF
 
 # % Install raspi-config utility
 echo "Updating raspi-config ..."
-rm -f "$RASPICFG_PACKAGE"
-wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/${RASPICFG_PACKAGE}"
-dpkg -i "$RASPICFG_PACKAGE"
+rm -f "raspi-config*.deb"
+wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191021_all.deb"
+dpkg -i "raspi-config*.deb"
 rm -f "raspi-config_20191021_all.deb"
 sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
 sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/bin/raspi-config
