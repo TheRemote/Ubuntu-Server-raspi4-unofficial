@@ -22,7 +22,7 @@ if [ -d ".updates" ]; then
     if [ -d "Ubuntu-Server-raspi4-unofficial" ]; then
         cd Ubuntu-Server-raspi4-unofficial
         git pull
-        git reset --hard origin/master
+        git reset --hard
         cd ..
     else
         git clone https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial.git
@@ -184,9 +184,9 @@ EOF
 # % Install raspi-config utility
 echo "Updating raspi-config ..."
 rm -f "raspi-config*.deb"
-wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191021_all.deb"
+curl --location "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191021_all.deb" --output "raspi-config_20191021_all.deb"
 dpkg -i "raspi-config*.deb"
-rm -f "raspi-config_20191021_all.deb"
+rm -f "raspi-config*.deb"
 sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
 sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/bin/raspi-config
 sed -i "s:armhf:arm64:g" /usr/bin/raspi-config
