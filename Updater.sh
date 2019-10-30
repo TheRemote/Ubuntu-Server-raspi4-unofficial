@@ -11,15 +11,10 @@ RASPICFG_PACKAGE="raspi-config_20191021_all.deb"
 sudo add-apt-repository ppa:ubuntu-x-swat/updates -yn
 
 # Add Raspberry Pi Userland repository
-sudo add-apt-repository ppa:ubuntu-raspi2/ppa -yn
-
-# Check if Updater.sh has been updated
-UpdatesHashOld=$(sha1sum "Updater.sh" | cut -d" " -f1 | xargs)
-UpdatesHashNew=$(sha1sum ".updates/Ubuntu-Server-raspi4-unofficial/Updater.sh" | cut -d" " -f1 | xargs)
-
+#sudo add-apt-repository ppa:ubuntu-raspi2/ppa -yn
 
 # Install dependencies
-sudo apt update && sudo apt install wireless-tools iw rfkill bluez libraspberrypi-bin haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
+sudo apt update && sudo apt install wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
 
 echo "Checking for updates ..."
@@ -28,7 +23,7 @@ if [ -d ".updates" ]; then
     cd .updates
     if [ -d "Ubuntu-Server-raspi4-unofficial" ]; then
         cd Ubuntu-Server-raspi4-unofficial
-        git fetch --all
+        git pull
         git reset --hard origin/master
         cd ..
     else
@@ -41,6 +36,9 @@ else
 fi
 cd ..
 
+# Check if Updater.sh has been updated
+UpdatesHashOld=$(sha1sum "Updater.sh" | cut -d" " -f1 | xargs)
+UpdatesHashNew=$(sha1sum ".updates/Ubuntu-Server-raspi4-unofficial/Updater.sh" | cut -d" " -f1 | xargs)
 
 if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
     echo "Updater has update available.  Updating now ..."
@@ -67,14 +65,18 @@ if [ "$LatestRelease" == "$CurrentRelease" ]; then
     exit
 fi
 
+# Update is available, confirm insatallation with user
 echo "Release v${LatestRelease} is available!  Make sure you have made a full backup."
 echo "Note: your /boot cmdline.txt and config.txt files will be reset to the newest version.  Make a backup of those first!"
 echo -n "Update now? (y/n)"
 read answer
 if [ "$answer" == "${answer#[Yy]}" ]; then
-    echo "Update has been aborted"
+    echo "Update has been aborted!"
     exit
 fi
+
+# Cleaning up old stuff
+sudo apt purge libraspberrypi-bin -y
 
 echo "Downloading update package ..."
 if [ -e "updates.tar.xz" ]; then rm -f "updates.tar.xz"; fi
@@ -152,6 +154,32 @@ exit 0
 EOF
 sudo chmod +x /etc/rc.local
 
+# Fix netplan
+sudo rm -f /etc/netplan/50-cloud-init.yaml
+sudo touch /etc/netplan/50-cloud-init.yaml
+cat << EOF | sudo tee /etc/netplan/50-cloud-init.yml
+network:
+    ethernets:
+        eth0:
+            dhcp4: true
+            optional: true
+    version: 2
+EOF
+sudo netplan generate 
+sudo netplan --debug apply
+
+# Add proposed apt archive
+cat << EOF | sudo tee -a /etc/apt/sources.list
+deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed restricted main multiverse universe
+EOF
+
+sudo touch /etc/apt/preferences.d/proposed-updates 
+cat << EOF | sudo tee -a /etc/apt/preferences.d/proposed-updates 
+Package: *
+Pin: release a=bionic-proposed
+Pin-Priority: 400
+EOF
+
 # % Install raspi-config utility
 echo "Updating raspi-config ..."
 rm -f "$RASPICFG_PACKAGE"
@@ -166,8 +194,12 @@ sed -i "s:/boot/start:/boot/firmware/start:g" /usr/bin/raspi-config
 sed -i "s:/boot/arm:/boot/firmware/arm:g" /usr/bin/raspi-config
 sed -i "s:/boot :/boot/firmware :g" /usr/bin/raspi-config
 sed -i "s:\\/boot\.:\\/boot\\\/firmware\.:g" /usr/bin/raspi-config
-sed -i "s:dtparam i2c_arm=$SETTING:dtparam -d /boot/firmware/overlays i2c_arm=$SETTING:g" /usr/bin/raspi-config
-sed -i "s:dtparam spi=$SETTING:dtparam -d /boot/firmware/overlays spi=$SETTING:g" /usr/bin/raspi-config
+sed -i 's:dtparam i2c_arm=$SETTING:dtparam -d /boot/firmware/overlays i2c_arm=$SETTING:g' /usr/bin/raspi-config
+sed -i 's:dtparam spi=$SETTING:dtparam -d /boot/firmware/overlays spi=$SETTING:g' /usr/bin/raspi-config
+sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/lib/raspi-config/init_resize.sh
+sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/lib/raspi-config/init_resize.sh
+sed -i "s: /boot/ : /boot/firmware/ :g" /usr/lib/raspi-config/init_resize.sh
+sed -i "s:mount /boot:mount /boot/firmware:g" /usr/lib/raspi-config/init_resize.sh
 sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-pre
 sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-post
 

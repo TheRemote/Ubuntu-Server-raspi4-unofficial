@@ -49,11 +49,20 @@ set_kernel_config CONFIG_BPF_LIRC_MODE2 y
 # XDP sockets
 set_kernel_config CONFIG_XDP_SOCKETS y
 
-# NFTables settings
+# NF Tables / NAT settings
 set_kernel_config CONFIG_NF_TABLES_INET y
+set_kernel_config CONFIG_NF_TABLES_IPV4 y
+set_kernel_config CONFIG_NF_TABLES_IPV6 y
 set_kernel_config CONFIG_NF_TABLES_NETDEV y
 set_kernel_config CONFIG_NF_TABLES_ARP y
 set_kernel_config CONFIG_NF_TABLES_BRIDGE y
+set_kernel_config CONFIG_NF_NAT_MASQUERADE_IPV4 y
+set_kernel_config CONFIG_NF_NAT_MASQUERADE_IPV6 y
+set_kernel_config CONFIG_NF_NAT_REDIRECT y
 
 # Enable ARM kernel workarounds
 set_kernel_config CONFIG_ARM64_ERRATUM_834220 y
+
+# Default power mode
+unset_kernel_config CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE
+set_kernel_config CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND y

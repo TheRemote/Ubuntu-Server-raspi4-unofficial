@@ -49,6 +49,14 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
+<strong>October 28th 2019 - v16 Release</strong><br>
+<ul>
+<li>Updated Pi firmware (sound / video fixes, see https://github.com/Hexxeh/rpi-firmware/commit/c5736330216628b5ff8e3d17dde7cc03ce2126e6)</li>
+<li>Updated Ubuntu-side firmware from updates included on the preinstalled 1910 release image</li>
+<li>New 64 bit Raspberry Pi userland tools/libraries (vcgencmd) tools are now available -- they are being freshly built each version now in the build script!</li>
+<li>Fixed netplan so startup isn't delayed by several minutes without an ethernet cable plugged in</li>
+</ul>
+<br>
 <strong>October 28th 2019 - v15 Official Release</strong><br>
 <ul>
 <li>Script to update between releases is finally ready, and with that I am taking this out of pre-release!</li>
