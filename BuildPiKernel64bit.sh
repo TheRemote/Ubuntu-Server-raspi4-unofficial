@@ -156,10 +156,8 @@ function BeforeCleanIMG {
 
   # Enter chroot to remove some packages
   sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
-  sudo chroot /mnt /bin/bash << EOF
-  # % Remove ureadahead, does not support arm and makes our bootup unclean when checking systemd status
-  # % Remove uboot, we don't use it
   # % Remove incompatible RPI firmware / headers / modules
+  sudo chroot /mnt /bin/bash << EOF
   apt purge linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2 -y
 EOF
 
@@ -291,7 +289,7 @@ if [ ! -f "$TARGET_IMG" ]; then
 fi
 cp -vf "$SOURCE_IMG" "$TARGET_IMG"
 # % Expands the target image by approximately 300MB to help us not run out of space and encounter errors
-truncate -s +609715200 "$TARGET_IMG"
+truncate -s +809715200 "$TARGET_IMG"
 sync; sync
 
 # % Check for Raspbian image and download if not present
@@ -412,8 +410,9 @@ if [ ! -d "rpi-linux" ]; then
   PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DTC_FLAGS="-@ -H epapr" LOCALVERSION=-james KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
   
   # % Build kernel modules
-  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
-  depmod --basedir . "${KERNEL_VERSION}"
+  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH sudo make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
+  sudo depmod --basedir . "${KERNEL_VERSION}"
+  sudo chown -R "$SUDO_USER" .
 
   echo `cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 fi
@@ -632,6 +631,22 @@ sudo mkdir -p /mnt/run/systemd/resolve
 sudo touch /mnt/run/systemd/resolve/stub-resolv.conf
 sudo cat /run/systemd/resolve/stub-resolv.conf | sudo tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
 
+# Add proposed apt archive
+cat << EOF | sudo tee /mnt/etc/apt/sources.list
+deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed main restricted multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic main restricted multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic-security main restricted multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic-updates main restricted multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic-backports main restricted multiverse universe
+EOF
+
+sudo touch /mnt/etc/apt/preferences.d/proposed-updates 
+cat << EOF | sudo tee /mnt/etc/apt/preferences.d/proposed-updates 
+Package: *
+Pin: release a=bionic-proposed
+Pin-Priority: 400
+EOF
+
 # Fix netplan
 sudo rm -f /mnt/etc/netplan/50-cloud-init.yaml
 sudo touch /mnt/etc/netplan/50-cloud-init.yaml
@@ -644,9 +659,13 @@ network:
     version: 2
 EOF
 
-# % Add proposed apt archive
-cat << EOF | sudo tee -a /mnt/etc/apt/sources.list
-deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed restricted main multiverse universe
+# Add proposed apt archive
+cat << EOF | sudo tee /etc/apt/sources.list
+deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed main restricted multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic main restricted multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic-security main restricted multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic-updates main restricted multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic-backports main restricted multiverse universe
 EOF
 
 sudo touch /mnt/etc/apt/preferences.d/proposed-updates
