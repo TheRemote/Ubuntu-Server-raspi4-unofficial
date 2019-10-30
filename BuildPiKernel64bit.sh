@@ -660,7 +660,7 @@ network:
 EOF
 
 # Add proposed apt archive
-cat << EOF | sudo tee /etc/apt/sources.list
+cat << EOF | sudo tee /mnt/etc/apt/sources.list
 deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed main restricted multiverse universe
 deb http://ports.ubuntu.com/ubuntu-ports bionic main restricted multiverse universe
 deb http://ports.ubuntu.com/ubuntu-ports bionic-security main restricted multiverse universe
