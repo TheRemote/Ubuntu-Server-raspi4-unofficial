@@ -157,7 +157,7 @@ sudo chmod +x /etc/rc.local
 # Fix netplan
 sudo rm -f /etc/netplan/50-cloud-init.yaml
 sudo touch /etc/netplan/50-cloud-init.yaml
-cat << EOF | sudo tee /etc/netplan/50-cloud-init.yml
+cat << EOF | sudo tee /etc/netplan/50-cloud-init.yaml
 network:
     ethernets:
         eth0:
