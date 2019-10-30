@@ -7,6 +7,7 @@
 
 # Add updated mesa repository for video driver support
 sudo add-apt-repository ppa:ubuntu-x-swat/updates -yn
+sudo add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
 
 # Install dependencies
 sudo apt update && sudo apt install wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
