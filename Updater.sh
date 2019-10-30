@@ -40,9 +40,9 @@ UpdatesHashNew=$(sha1sum ".updates/Ubuntu-Server-raspi4-unofficial/Updater.sh" |
 
 if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
     echo "Updater has update available.  Updating now ..."
-    rm -f Updater.sh
-    cp -f .updates/Ubuntu-Server-raspi4-unofficial/Updater.sh Updater.sh
-    chmod +x Updater.sh
+    sudo rm -f Updater.sh
+    sudo cp -f .updates/Ubuntu-Server-raspi4-unofficial/Updater.sh Updater.sh
+    sudo chmod +x Updater.sh
     exec $(readlink -f "Updater.sh")
     exit
 fi
@@ -74,11 +74,12 @@ if [ "$answer" == "${answer#[Yy]}" ]; then
 fi
 
 # Cleaning up old stuff
+sudo apt-
 sudo apt purge libraspberrypi-bin -y
 
 echo "Downloading update package ..."
 if [ -e "updates.tar.xz" ]; then rm -f "updates.tar.xz"; fi
-curl --location "https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/releases/download/v${LatestRelease}/updates.tar.xz" --output "updates.tar.xz"
+sudo curl --location "https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/releases/download/v${LatestRelease}/updates.tar.xz" --output "updates.tar.xz"
 if [ ! -e "updates.tar.xz" ]; then
     echo "Update has failed to download -- please try again later"
     exit
@@ -86,8 +87,9 @@ fi
 
 # Download was successful, extract and copy updates
 echo "Extracting update package - This can take several minutes on the Pi ..."
-tar -xf "updates.tar.xz"
-rm -f "updates.tar.xz"
+sudo rm -rf updates
+sudo tar -xf "updates.tar.xz"
+sudo rm -f "updates.tar.xz"
 
 if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     echo "Copying updates to rootfs ..."
@@ -170,12 +172,16 @@ sudo netplan generate
 sudo netplan --debug apply
 
 # Add proposed apt archive
-cat << EOF | sudo tee -a /etc/apt/sources.list
+cat << EOF | sudo tee /etc/apt/sources.list
 deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed restricted main multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic main restricted multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic-security main restricted multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic-updates main restricted multiverse universe
+deb http://ports.ubuntu.com/ubuntu-ports bionic-backports main restricted multiverse universe
 EOF
 
 sudo touch /etc/apt/preferences.d/proposed-updates 
-cat << EOF | sudo tee -a /etc/apt/preferences.d/proposed-updates 
+cat << EOF | sudo tee /etc/apt/preferences.d/proposed-updates 
 Package: *
 Pin: release a=bionic-proposed
 Pin-Priority: 400
