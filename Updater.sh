@@ -72,7 +72,6 @@ if [ "$answer" == "${answer#[Yy]}" ]; then
 fi
 
 # Cleaning up old stuff
-sudo apt-
 sudo apt purge libraspberrypi-bin -y
 
 echo "Downloading update package ..."
