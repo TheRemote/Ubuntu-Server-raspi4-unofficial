@@ -690,7 +690,7 @@ cd /
 add-apt-repository ppa:ubuntu-x-swat/updates -yn
 
 # % Add Raspberry Pi Userland repository
-#add-apt-repository ppa:ubuntu-raspi2/ppa -yn
+#add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
 
 
 # % Install wireless tools and bluetooth (wireless-tools, iw, rfkill, bluez)

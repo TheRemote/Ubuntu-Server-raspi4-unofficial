@@ -8,9 +8,6 @@
 # Add updated mesa repository for video driver support
 sudo add-apt-repository ppa:ubuntu-x-swat/updates -yn
 
-# Add Raspberry Pi Userland repository
-#sudo add-apt-repository ppa:ubuntu-raspi2/ppa -yn
-
 # Install dependencies
 sudo apt update && sudo apt install wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
@@ -98,12 +95,14 @@ if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     echo "Copying updates to bootfs ..."
     sudo cp --verbose --archive --no-preserve=ownership updates/bootfs/* /boot/firmware
 
-    echo "Cleaning up downloaded files ..."
-    sudo rm -rf updates
-
     # Update initramfs so our new kernel and modules are picked up
     echo "Updating kernel and modules ..."
+    export KERNEL_VERSION="$(ls updates/rootfs/lib/modules)"
+    sudo depmod "${KERNEL_VERSION}"
     sudo update-initramfs -u
+
+    echo "Cleaning up downloaded files ..."
+    sudo rm -rf updates
 
     # Save our new updated release to .lastupdate file
     sudo touch /etc/imgrelease
@@ -114,7 +113,7 @@ else
 fi
 
 # % Add account to video group to allow access to vcgencmd and other userland utilities
-sudo usermod -aG video $SUDO_USER
+sudo usermod -aG video "$SUDO_USER"
 
 # % Fix /lib/firmware symlink
 sudo ln -s /lib/firmware /etc/firmware
