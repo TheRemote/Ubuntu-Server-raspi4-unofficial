@@ -15,7 +15,7 @@ sudo add-apt-repository ppa:ubuntu-x-swat/updates -yn
 sudo add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
 
 # Install dependencies
-sudo apt update && sudo apt install wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
+sudo apt update && sudo apt install ofono libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
 
 echo "Checking for updates ..."
@@ -155,7 +155,7 @@ if [ -n "`which pulseaudio`" ]; then
     sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
   else
     GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0 tsched=0")
-    if [ -z "$GrepCheck" ]; then
+    if [ ! -z "$GrepCheck" ]; then
         sed -i 's/tsched=0//g' /etc/pulse/default.pa
         sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
     fi

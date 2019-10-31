@@ -677,7 +677,8 @@ add-apt-repository ppa:ubuntu-x-swat/updates -yn
 # % Install raspi-config dependencies (libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils)
 # % Install dependencies to build Pi modules (git build-essential bc bison flex libssl-dev device-tree-compiler)
 # % Install curl and unzip utilities
-apt update && apt install curl unzip wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils git bc bison flex libssl-dev -y && apt dist-upgrade -y
+# % Install missing libblockdev-mdraid
+apt update && apt install curl unzip wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils git bc bison flex libssl-dev libblockdev-mdraid2 -y && apt dist-upgrade -y
 
 # % Install raspi-config utility
 rm -f "$RASPICFG_PACKAGE"

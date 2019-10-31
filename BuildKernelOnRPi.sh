@@ -6,11 +6,11 @@
 
 sudo apt-get update && sudo apt-get install git curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y
 
-cd /usr/src/rpi-linux*/
+cd /usr/src/4.19*
 sudo make -j$(nproc) bcm2711_defconfig
 sudo cp -f /boot/config .config
-sudo make prepare
-sudo make modules_prepare
+sudo make -j$(nproc) prepare
+sudo make -j$(nproc) modules_prepare
 
 # Even more thorough options
 
