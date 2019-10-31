@@ -57,6 +57,7 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <li>Fixed issue where Pulse would not come back on after first reboot</li>
 <li>Fixed netplan so startup isn't delayed by several minutes without an ethernet cable plugged in</li>
 <li>Fixed several kernel flags related to sound/video</li>
+<li>Fixed several issues with updater</li>
 </ul>
 <br>
 <strong>October 28th 2019 - v15 Official Release</strong><br>

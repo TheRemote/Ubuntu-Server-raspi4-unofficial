@@ -7,7 +7,7 @@
 cd ~
 sudo rm -rf rpi-linux 
 
-sudo rm -rf rpi-source
+#sudo rm -rf rpi-source
 sudo rm -rf firmware-build
 
 sudo rm -rf ~/linux-*

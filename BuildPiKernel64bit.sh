@@ -6,7 +6,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="15"
+IMAGE_VERSION="16"
 
 TARGET_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img.xz"
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
