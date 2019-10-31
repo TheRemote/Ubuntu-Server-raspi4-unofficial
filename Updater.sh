@@ -86,7 +86,6 @@ fi
 echo "Extracting update package - This can take several minutes on the Pi ..."
 sudo rm -rf updates
 sudo tar -xf "updates.tar.xz"
-sudo rm -f "updates.tar.xz"
 
 if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     echo "Copying updates to rootfs ..."
@@ -102,21 +101,27 @@ if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     sudo update-initramfs -u
 
     echo "Cleaning up downloaded files ..."
+    sudo rm -f "updates.tar.xz"
     sudo rm -rf updates
 
     # Save our new updated release to .lastupdate file
     sudo touch /etc/imgrelease
     echo "$LatestRelease" | sudo tee /etc/imgrelease >/dev/null;
 else
+    sudo rm -f "updates.tar.xz"
     echo "Update has failed to extract.  Please try again later!"
     exit
 fi
 
-# % Add account to video group to allow access to vcgencmd and other userland utilities
-sudo usermod -aG video "$SUDO_USER"
+# % Add various groups to account such as the video group to allow access to vcgencmd and other userland utilities
+sudo groupadd -f spi
+sudo groupadd -f i2c
+sudo groupadd -f gpio
+sudo usermod -aG adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev,spi,i2c,gpio "$SUDO_USER"
 
-# % Fix /lib/firmware symlink
+# % Fix /lib/firmware symlink, overlays symlink
 sudo ln -s /lib/firmware /etc/firmware
+sudo ln -s /boot/firmware/overlays /boot/overlays
 
 # % Fix WiFi
 # % The Pi 4 version returns boardflags3=0x44200100

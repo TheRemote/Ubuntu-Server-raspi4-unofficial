@@ -7,10 +7,11 @@
 cd ~
 sudo rm -rf rpi-linux 
 sudo rm -rf rpi-source
-
 sudo rm -rf firmware-build
+
 sudo rm -rf ~/linux-*
-sudo rm -rf updates updates.tar.xz 
+sudo rm -rf updates
+sudo rm updates.tar.xz 
 sudo rm -rf ubuntu*.img *+raspi4.img.xz
 
 # Even more thorough options

@@ -20,7 +20,7 @@ export SLEEP_SHORT="0.1"
 export SLEEP_LONG="1"
 
 export MOUNT_IMG=""
-export KERNEL_VERSION="4.19.80-v8"
+export KERNEL_VERSION="4.19.80-v8-james"
 
 # FUNCTIONS
 function PrepareIMG {
@@ -158,7 +158,7 @@ function BeforeCleanIMG {
   sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
   # % Remove incompatible RPI firmware / headers / modules
   sudo chroot /mnt /bin/bash << EOF
-  apt purge linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2 -y
+  apt purge linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2 ureadahead libnih1 -y
 EOF
 
   sudo rm -rf /mnt/boot/firmware/*
@@ -167,7 +167,7 @@ EOF
   sudo rm -rf /mnt/boot/vmlinu*
   sudo rm -rf /mnt/boot/System.map*
 
-  #sudo rm -rf /mnt/lib/firmware/*
+  sudo rm -rf /mnt/lib/firmware/*
   sudo rm -rf /mnt/lib/modules/*
 
   sudo rm -rf /mnt/usr/src/*
@@ -351,7 +351,11 @@ cp --recursive --update --archive --no-preserve=ownership ~/firmware-nonfree/* ~
 cp --recursive --update --archive --no-preserve=ownership ~/firmware-raspbian/* ~/firmware-build
 sudo rm -rf ~/firmware-build/.git 
 sudo rm -rf ~/firmware-build/.github
-sudo rm -rf ~/firmware-build/raspberrypi
+sudo rm -rf ~/firmware-build/
+
+sudo rm -rf ~/firmware-build/netronome
+sudo rm -rf ~/firmware-build/amdgpu
+
 cd ~/firmware-ubuntu-1804
 # Remove duplicate files that are already in 1804 and haven't changed
 for f in $(find -L . -type f -print); do
@@ -359,9 +363,10 @@ for f in $(find -L . -type f -print); do
     File1Hash=$(sha1sum "$f" | cut -d" " -f1 | xargs)
     if [ -f "../firmware-build/$f" ]; then
       File2Hash=$(sha1sum "../firmware-build/$f" | cut -d" " -f1 | xargs)
-      if [ "$File1Hash" == "$File2Hash" ]; then
-        rm -rf "../firmware-build/$f"
-      fi
+      #if [ "$File1Hash" == "$File2Hash" ]; then
+        #rm -rf "../firmware-build/$f"
+        
+      #fi
     fi
   fi
 done
@@ -373,7 +378,7 @@ for f in $(find -L . -type d -empty -print); do
   fi
 done
 # Remove broken symbolic links
-find . -xtype l -delete
+#find . -xtype l -delete
 cd ~
 
 
@@ -480,10 +485,10 @@ mkdir -p ~/updates/rootfs/usr/lib/"${KERNEL_VERSION}"/broadcom
 mkdir -p ~/updates/rootfs/lib/firmware
 mkdir -p ~/updates/rootfs/lib/modules/"${KERNEL_VERSION}"
 mkdir -p ~/updates/rootfs/include/interface/vcos/generic
-mkdir -p ~/updates/rootfs/usr/src/rpi-linux-"${KERNEL_VERSION}"
+mkdir -p ~/updates/rootfs/usr/src/"${KERNEL_VERSION}"
 cp --recursive --update --archive --no-preserve=ownership ~/firmware-build/* ~/updates/rootfs/lib/firmware
 cp --recursive --update --archive --no-preserve=ownership ~/rpi-linux/lib/modules/* ~/updates/rootfs/lib/modules
-cp --recursive --update --archive --no-preserve=ownership ~/rpi-source/* ~/updates/rootfs/usr/src/rpi-linux-"${KERNEL_VERSION}"
+cp --recursive --update --archive --no-preserve=ownership ~/rpi-source/* ~/updates/rootfs/usr/src/"${KERNEL_VERSION}"
 
 sync; sync
 sleep "$SLEEP_SHORT"
@@ -507,7 +512,7 @@ cp -rf ~/rpi-linux/arch/arm64/boot/Image ~/updates/rootfs/boot/kernel8.img
 cp -rf ~/rpi-linux/vmlinux ~/updates/rootfs/boot/vmlinux-"${KERNEL_VERSION}"
 cp -rf ~/rpi-linux/System.map ~/updates/rootfs/boot/System.map-"${KERNEL_VERSION}"
 cp -rf ~/rpi-linux/Module.symvers ~/updates/rootfs/boot/Module.symvers-"${KERNEL_VERSION}"
-cp -rf ~/rpi-linux/Module.symvers ~/updates/rootfs/usr/src/rpi-linux-"${KERNEL_VERSION}"/Module.symvers
+cp -rf ~/rpi-linux/Module.symvers ~/updates/rootfs/usr/src/"${KERNEL_VERSION}"/Module.symvers
 cp -rf ~/rpi-linux/.config ~/updates/rootfs/boot/config-"${KERNEL_VERSION}"
 sync; sync
 sleep "$SLEEP_SHORT"
@@ -519,9 +524,9 @@ cp -rf ~/rpi-linux/arch/arm64/boot/dts/broadcom/*.dtb ~/updates/bootfs
 cp -rf ~/rpi-linux/arch/arm64/boot/dts/overlays/*.dtb* ~/updates/bootfs/overlays
 
 # % Copy new Raspberry Pi userland
-cp -rf ~/userland/build/bin/* ~/updates/rootfs/usr/bin
-cp -rf ~/userland/build/lib/* ~/updates/rootfs/usr/lib/aarch64-linux-gnu
-cp -rf ~/userland/build/inc/* ~/updates/rootfs/include
+cp -rf ~/userland/build/arm-linux/release/vmcs_host_apps-1.0.pre-1-Linux/bin/* ~/updates/rootfs/usr/bin
+cp -rf ~/userland/build/arm-linux/release/vmcs_host_apps-1.0.pre-1-Linux/lib/* ~/updates/rootfs/usr/lib/aarch64-linux-gnu
+cp -rf ~/userland/build/arm-linux/release/vmcs_host_apps-1.0.pre-1-Linux/include/* ~/updates/rootfs/usr/include
 
 # % Copy kernel and gpu firmware start*.elf and fixup*.dat files
 cp -rf ~/firmware/boot/*.elf ~/updates/bootfs
@@ -659,22 +664,6 @@ network:
     version: 2
 EOF
 
-# Add proposed apt archive
-cat << EOF | sudo tee /mnt/etc/apt/sources.list
-deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed main restricted multiverse universe
-deb http://ports.ubuntu.com/ubuntu-ports bionic main restricted multiverse universe
-deb http://ports.ubuntu.com/ubuntu-ports bionic-security main restricted multiverse universe
-deb http://ports.ubuntu.com/ubuntu-ports bionic-updates main restricted multiverse universe
-deb http://ports.ubuntu.com/ubuntu-ports bionic-backports main restricted multiverse universe
-EOF
-
-sudo touch /mnt/etc/apt/preferences.d/proposed-updates
-cat << EOF | sudo tee -a /mnt/etc/apt/preferences.d/proposed-updates 
-Package: *
-Pin: release a=bionic-proposed
-Pin-Priority: 400
-EOF
-
 # % Enter Ubuntu image chroot
 echo "Entering chroot of IMG file"
 sudo chroot /mnt /bin/bash << EOF
@@ -685,6 +674,7 @@ export KERNEL_VERSION="$(ls /lib/modules)"
 # % Fix /lib/firmware permission and symlink (fixes Bluetooth and firmware issues)
 chown -R root:root /lib
 ln -s /lib/firmware /etc/firmware
+ln -s /boot/firmware/overlays /boot/overlays
 
 # % Create kernel and component symlinks
 cd /boot
@@ -701,16 +691,12 @@ sudo ln -s config-"${KERNEL_VERSION}" config
 # % Create kernel header symlink
 sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/build 
 sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/source
-sudo ln -s /usr/src/rpi-linux-"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/build
-sudo ln -s /usr/src/rpi-linux-"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
+sudo ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/build
+sudo ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
 cd /
 
 # % Add updated mesa repository for video driver support
 add-apt-repository ppa:ubuntu-x-swat/updates -yn
-
-# % Add Raspberry Pi Userland repository
-#add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
-
 
 # % Install wireless tools and bluetooth (wireless-tools, iw, rfkill, bluez)
 # % Install haveged - prevents low entropy issues from making the Pi take a long time to start up
@@ -746,7 +732,7 @@ sudo netplan generate
 sudo netplan --debug apply
 
 # % Update initramfs
-update-initramfs -u
+#update-initramfs -u
 
 # % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
@@ -843,8 +829,8 @@ sudo rm -f "$TARGET_IMGXZ"
 xz -9 --extreme --force --keep --threads=0 --quiet "$TARGET_IMG"
 
 # Compress our updates used for the autoupdater
-echo "Compressing updates.tar.gz ..."
-sudo rm -f ~/updates.tar.gz
+echo "Compressing updates.tar.xz ..."
+sudo rm -f ~/updates.tar.xz
 tar -cpJf updates.tar.xz updates/
 
 echo "Build completed"
