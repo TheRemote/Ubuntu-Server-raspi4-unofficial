@@ -604,7 +604,7 @@ sudo sed -i "s/ib_iser/#ib_iser/g" /mnt/lib/modules-load.d/open-iscsi.conf
 sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /mnt/lib/modules-load.d/open-iscsi.conf
 
 # % Fix update-initramfs mdadm.conf warning
-#sudo grep "ARRAY devices" /mnt/etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo tee -a /mnt/etc/mdadm/mdadm.conf >/dev/null;
+sudo grep "ARRAY devices" /mnt/etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo tee -a /mnt/etc/mdadm/mdadm.conf >/dev/null;
 
 # % Copy resolv.conf from local host so we have networking in our chroot
 sudo mkdir -p /mnt/run/systemd/resolve
@@ -766,9 +766,15 @@ cat << EOF | sudo tee /mnt/etc/rc.local
 
 # Fix sound
 if [ -n "`which pulseaudio`" ]; then
-  GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0")
+  GrepCheck=$(cat /etc/pulse/default.pa | grep tsched=0)
   if [ -z "$GrepCheck" ]; then
     sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
+  else
+    GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0 tsched=0")
+    if [ ! -z "$GrepCheck" ]; then
+        sed -i 's/tsched=0//g' /etc/pulse/default.pa
+        sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
+    fi
   fi
 fi
 
