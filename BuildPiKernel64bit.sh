@@ -351,36 +351,10 @@ cp --recursive --update --archive --no-preserve=ownership ~/firmware-nonfree/* ~
 cp --recursive --update --archive --no-preserve=ownership ~/firmware-raspbian/* ~/firmware-build
 sudo rm -rf ~/firmware-build/.git 
 sudo rm -rf ~/firmware-build/.github
-sudo rm -rf ~/firmware-build/
 
+sudo rm -rf ~/firmware-build/LICEN*
 sudo rm -rf ~/firmware-build/netronome
 sudo rm -rf ~/firmware-build/amdgpu
-
-cd ~/firmware-ubuntu-1804
-# Remove duplicate files that are already in 1804 and haven't changed
-for f in $(find -L . -type f -print); do
-  if [ -f "$f" ] && [ ! -L "$f" ]; then
-    File1Hash=$(sha1sum "$f" | cut -d" " -f1 | xargs)
-    if [ -f "../firmware-build/$f" ]; then
-      File2Hash=$(sha1sum "../firmware-build/$f" | cut -d" " -f1 | xargs)
-      #if [ "$File1Hash" == "$File2Hash" ]; then
-        #rm -rf "../firmware-build/$f"
-        
-      #fi
-    fi
-  fi
-done
-cd ~/firmware-build
-# Remove empty folders
-for f in $(find -L . -type d -empty -print); do
-  if [ -d "$f" ] && [ ! -L "$f" ]; then
-    rmdir "$f"
-  fi
-done
-# Remove broken symbolic links
-#find . -xtype l -delete
-cd ~
-
 
 # BUILD KERNEL
 cd ~
@@ -394,7 +368,7 @@ if [ ! -d "rpi-linux" ]; then
   PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
 
   # % Run conform_config scripts which fix kernel flags to work correctly in arm64
-  wget https://raw.githubusercontent.com/sakaki-/bcmrpi3-kernel-bis/master/conform_config.sh
+  wget https://raw.githubusercontent.com/sakaki-/bcm2711-kernel-bis/master/conform_config.sh
   chmod +x conform_config.sh
   ./conform_config.sh
   rm -f conform_config.sh
@@ -409,11 +383,12 @@ if [ ! -d "rpi-linux" ]; then
 
   # % Run prepare to register all our .config changes
   cd ~/rpi-linux
-  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare
+  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare dtbs
 
   # % Prepare and build the rpi-linux source - create debian packages to make it easy to update the image
   PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DTC_FLAGS="-@ -H epapr" LOCALVERSION=-james KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
   
+  # % Make DTBOs
   # % Build kernel modules
   PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH sudo make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
   sudo depmod --basedir . "${KERNEL_VERSION}"
@@ -584,8 +559,8 @@ disable_overscan=1
 #sdtv_mode=2
 
 # Uncomment some or all of these to enable the optional hardware interfaces
-dtparam=i2c_arm=on
-dtparam=spi=on
+#dtparam=i2c_arm=on
+#dtparam=spi=on
 #dtparam=i2s=on
 
 # Uncomment this to enable infrared communication.
@@ -791,8 +766,8 @@ cat << EOF | sudo tee /mnt/etc/rc.local
 
 # Fix sound
 if [ -n "`which pulseaudio`" ]; then
-  GrepCheck=$(cat /etc/pulse/default.pa | grep "load-module module-udev-detect tsched=0")
-  if [ ! -n "$GrepCheck" ]; then
+  GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0")
+  if [ -z "$GrepCheck" ]; then
     sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
   fi
 fi
