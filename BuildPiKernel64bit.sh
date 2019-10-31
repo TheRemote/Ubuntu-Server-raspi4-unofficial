@@ -637,13 +637,12 @@ sudo touch /mnt/run/systemd/resolve/stub-resolv.conf
 sudo cat /run/systemd/resolve/stub-resolv.conf | sudo tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
 
 # Add proposed apt archive
-cat << EOF | sudo tee /mnt/etc/apt/sources.list
-deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed main restricted multiverse universe
-deb http://ports.ubuntu.com/ubuntu-ports bionic main restricted multiverse universe
-deb http://ports.ubuntu.com/ubuntu-ports bionic-security main restricted multiverse universe
-deb http://ports.ubuntu.com/ubuntu-ports bionic-updates main restricted multiverse universe
-deb http://ports.ubuntu.com/ubuntu-ports bionic-backports main restricted multiverse universe
+GrepCheck=$(cat /mnt/etc/apt/sources.list | grep "ubuntu-ports bionic-proposed")
+if [ -z "$GrepCheck" ]; then
+    cat << EOF | sudo tee -a /mnt/etc/apt/sources.list
+deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed restricted main multiverse universe
 EOF
+fi
 
 sudo touch /mnt/etc/apt/preferences.d/proposed-updates 
 cat << EOF | sudo tee /mnt/etc/apt/preferences.d/proposed-updates 
