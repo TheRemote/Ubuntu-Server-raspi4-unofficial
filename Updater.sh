@@ -4,6 +4,11 @@
 # https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/
 # https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
 
+# Check for sudo
+if [ -z "$SUDO_USER" ]; then
+    echo "Error: must run as sudo (sudo ./Updater.sh)"
+    exit
+fi
 
 # Add updated mesa repository for video driver support
 sudo add-apt-repository ppa:ubuntu-x-swat/updates -yn
@@ -193,10 +198,10 @@ EOF
 
 # % Install raspi-config utility
 echo "Updating raspi-config ..."
-sudo rm -f "raspi-config*.deb"
-sudo curl --location "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191021_all.deb" --output "raspi-config_20191021_all.deb"
+sudo rm -f "raspi-config_20191021_all.deb"
+sudo curl --location 'https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191021_all.deb' --output 'raspi-config_20191021_all.deb'
 sudo dpkg -i "raspi-config_20191021_all.deb"
-sudo rm -f "raspi-config*.deb"
+sudo rm -f "raspi-config_20191021_all.deb"
 sudo sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
 sudo sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/bin/raspi-config
 sudo sed -i "s:armhf:arm64:g" /usr/bin/raspi-config
