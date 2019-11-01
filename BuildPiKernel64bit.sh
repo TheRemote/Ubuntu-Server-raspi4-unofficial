@@ -20,7 +20,7 @@ export SLEEP_SHORT="0.1"
 export SLEEP_LONG="1"
 
 export MOUNT_IMG=""
-export KERNEL_VERSION="4.19.80-v8-james"
+export KERNEL_VERSION=""
 
 # FUNCTIONS
 function PrepareIMG {
@@ -371,7 +371,7 @@ if [ ! -d "rpi-linux" ]; then
   # Make copy of source code if not present
   if [ ! -d "rpi-source" ]; then
     mkdir ~/rpi-source
-    cp -rf ~/rpi-linux ~/rpi-source
+    cp -rf ~/rpi-linux/* ~/rpi-source
     rm ~/rpi-source/.git ~/rpi-source/.github
   fi
 
@@ -397,15 +397,17 @@ if [ ! -d "rpi-linux" ]; then
   PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare dtbs
 
   # % Prepare and build the rpi-linux source - create debian packages to make it easy to update the image
-  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DTC_FLAGS="-@ -H epapr" LOCALVERSION=-james KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
+  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DTC_FLAGS="-@ -H epapr" LOCALVERSION=-v"${IMAGE_VERSION}" KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
   
+  export KERNEL_VERSION=`cat ~/rpi-linux/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
+
   # % Make DTBOs
   # % Build kernel modules
   PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH sudo make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
   sudo depmod --basedir . "${KERNEL_VERSION}"
   sudo chown -R "$SUDO_USER" .
-
-  echo `cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
+else
+  export KERNEL_VERSION=`cat ~/rpi-linux/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 fi
 
 # PREPARE IMAGE

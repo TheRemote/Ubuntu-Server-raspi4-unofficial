@@ -66,3 +66,20 @@ set_kernel_config CONFIG_ARM64_ERRATUM_834220 y
 # Default power mode
 unset_kernel_config CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE
 set_kernel_config CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND y
+
+# HDMI CEC Settings
+set_kernel_config CONFIG_MEDIA_CEC_SUPPORT y
+set_kernel_config CONFIG_CEC_RC y
+set_kernel_config CONFIG_USB_PULSE8_CEC m
+set_kernel_config CONFIG_USB_RAINSHADOW_CEC m
+set_kernel_config CONFIG_CEC_PLATFORM_DRIVERS y
+
+# Siano controller support
+set_kernel_config SMS_SIANO_RC y
+
+# AppArmor
+set_kernel_config CONFIG_SECURITY_APPARMOR y
+set_kernel_config CONFIG_SECURITY_APPARMOR_HASH y
+set_kernel_config CONFIG_SECURITY_APPARMOR_HASH_DEFAULT y
+set_kernel_config CONFIG_DEFAULT_SECURITY_APPARMOR y
+set_kernel_config CONFIG_LSM "yama,integrity,apparmor"
