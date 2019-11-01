@@ -148,7 +148,7 @@ sudo grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY device
 
 # Startup tweaks to fix bluetooth and sound issues
 sudo touch /etc/rc.local
-cat << EOF | sudo tee /etc/rc.local
+cat << \EOF | sudo tee /etc/rc.local
 #!/bin/bash
 #
 # rc.local
