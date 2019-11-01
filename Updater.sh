@@ -189,18 +189,21 @@ EOF
 sudo chmod +x /etc/rc.local
 
 # Fix netplan
-sudo rm -f /etc/netplan/50-cloud-init.yaml
-sudo touch /etc/netplan/50-cloud-init.yaml
-cat << EOF | sudo tee /etc/netplan/50-cloud-init.yaml
-network:
-    ethernets:
-        eth0:
-            dhcp4: true
-            optional: true
-    version: 2
+GrepCheck=$(cat /etc/netplan/50-cloud-init.yaml | grep "optional: true")
+if [ -z "$GrepCheck" ]; then
+    sudo rm -f /etc/netplan/50-cloud-init.yaml
+    sudo touch /etc/netplan/50-cloud-init.yaml
+    cat << EOF | sudo tee /etc/netplan/50-cloud-init.yaml
+    network:
+        ethernets:
+            eth0:
+                dhcp4: true
+                optional: true
+        version: 2
 EOF
-sudo netplan generate 
-sudo netplan --debug apply
+    sudo netplan generate 
+    sudo netplan --debug apply
+fi
 
 # Add proposed apt archive
 GrepCheck=$(cat /etc/apt/sources.list | grep "ubuntu-ports bionic-proposed")
