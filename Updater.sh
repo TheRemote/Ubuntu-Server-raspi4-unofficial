@@ -147,6 +147,7 @@ sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /lib/modules-load.d/open-iscsi.conf
 sudo grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo tee -a /etc/mdadm/mdadm.conf >/dev/null;
 
 # Startup tweaks to fix bluetooth and sound issues
+sudo rm /etc/rc.local
 sudo touch /etc/rc.local
 cat << \EOF | sudo tee /etc/rc.local
 #!/bin/bash

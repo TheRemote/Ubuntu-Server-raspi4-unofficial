@@ -289,17 +289,9 @@ if [ ! -f "$TARGET_IMG" ]; then
 fi
 cp -vf "$SOURCE_IMG" "$TARGET_IMG"
 # % Expands the target image by approximately 300MB to help us not run out of space and encounter errors
+echo "Expanding image free space ..."
 truncate -s +809715200 "$TARGET_IMG"
 sync; sync
-
-# % Check for Raspbian image and download if not present
-if [ ! -f "$RASPBIAN_IMG" ]; then
-  curl -O -J -L https://downloads.raspberrypi.org/raspbian_lite_latest
-
-  unzip raspbian_lite_latest
-  rm -f raspbian_lite_latest
-fi
-
 
 # GET USERLAND
 cd ~
@@ -359,10 +351,17 @@ sudo rm -rf ~/firmware-build/amdgpu
 # BUILD KERNEL
 cd ~
 if [ ! -d "rpi-linux" ]; then
-  # % Check out the 4.19.y kernel branch -- if building and future versions are available you can update which branch is checked out here
+  # Check out the 4.19.y kernel branch -- if building and future versions are available you can update which branch is checked out here
   git clone https://github.com/raspberrypi/linux.git rpi-linux --single-branch --branch rpi-4.19.y --depth 1
   cd ~/rpi-linux
   git checkout origin/rpi-4.19.y
+
+  # Make copy of source code if not present
+  if [ ! -d "rpi-source" ]; then
+    mkdir ~/rpi-source
+    cp -rf ~/rpi-linux ~/rpi-source
+    rm ~/rpi-source/.git ~/rpi-source/.github
+  fi
 
   # CONFIGURE / MAKE
   PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
@@ -397,14 +396,6 @@ if [ ! -d "rpi-linux" ]; then
   echo `cat ./include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 fi
 
-# PREPARE DISTRIBUTED SOURCE TREE
-cd ~
-if [ ! -d "rpi-source" ]; then
-  tar -xf *.orig.tar.gz
-  mv linux*-james/ rpi-source
-  cp -f ~/rpi-linux/.config .config
-fi
-
 # PREPARE IMAGE
 cd ~
 MountIMG "$TARGET_IMG"
@@ -430,6 +421,7 @@ UnmountIMG "$TARGET_IMG"
 MountIMG "$TARGET_IMG"
 
 # Run e2fsck
+echo "Running e2fsck"
 sudo e2fsck -fva "/dev/mapper/${MOUNT_IMG}p2"
 sync; sync
 sleep "$SLEEP_SHORT"
@@ -437,6 +429,7 @@ UnmountIMG "$TARGET_IMG"
 MountIMG "$TARGET_IMG"
 
 # Run resize2fs
+echo "Running resize2fs"
 sudo resize2fs "/dev/mapper/${MOUNT_IMG}p2"
 sync; sync
 sleep "$SLEEP_SHORT"
@@ -452,7 +445,6 @@ cd ~
 sudo rm -rf ~/updates
 mkdir -p ~/updates/bootfs/overlays
 mkdir -p ~/updates/rootfs/boot
-mkdir -p ~/updates/rootfs/home
 mkdir -p ~/updates/rootfs/usr/bin
 mkdir -p ~/updates/rootfs/usr/lib/aarch64-linux-gnu
 mkdir -p ~/updates/rootfs/usr/lib/"${KERNEL_VERSION}"/overlays
@@ -817,6 +809,8 @@ xz -9 --extreme --force --keep --threads=0 --quiet "$TARGET_IMG"
 
 # Compress our updates used for the autoupdater
 echo "Compressing updates.tar.xz ..."
+# Prevent overwriting the updater running the updates since it's probably newer than us
+sudo rm -f ~/updates/rootfs/home/Updater.sh
 sudo rm -f ~/updates.tar.xz
 tar -cpJf updates.tar.xz updates/
 

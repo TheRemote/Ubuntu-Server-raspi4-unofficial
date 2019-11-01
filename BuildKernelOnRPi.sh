@@ -12,7 +12,5 @@ sudo cp -f /boot/config .config
 sudo make -j$(nproc) prepare
 sudo make -j$(nproc) modules_prepare
 
-# Even more thorough options
-
-#sudo rm -rf firmware
-#sudo rm -rf firmware-nonfree
+# Line below compiles the whole kernel
+#sudo make -j$(nproc)
