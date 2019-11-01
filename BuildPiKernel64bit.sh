@@ -759,7 +759,7 @@ EOF
 
 # % Startup tweaks to fix bluetooth and sound issues
 sudo touch /mnt/etc/rc.local
-cat << EOF | sudo tee /mnt/etc/rc.local
+cat << \EOF | sudo tee /mnt/etc/rc.local
 #!/bin/bash
 #
 # rc.local
