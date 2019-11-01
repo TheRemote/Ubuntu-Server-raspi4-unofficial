@@ -49,6 +49,12 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
+<strong>November 1st 2019 - v17 Release</strong><br>
+<ul>
+<li>Fixed issue with CUPS preventing firmware modules from loading in xubuntu-desktop</li>
+<li>Fixed unescaped EOF issue that was messing up fixes in /etc/rc.local (thanks meisenzahl for the pull request!)</li>
+</ul>
+<br>
 <strong>October 31st 2019 - v16 Release</strong><br>
 <ul>
 <li>Updated Pi firmware (sound / video fixes, see https://github.com/Hexxeh/rpi-firmware/commit/c5736330216628b5ff8e3d17dde7cc03ce2126e6)</li>
