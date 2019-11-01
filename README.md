@@ -24,7 +24,7 @@ This unofficial Ubuntu image is a compilation of all the latest knowledge/firmwa
     <li>KVM virtualization support</li>
     <li>Update script provided to update kernels/firmware/modules</li>
 </ul>
-<h2>Updates</h2>
+<h2>Getting Updates</h2>
 First and foremost all of your updates will be coming from Ubuntu directly in apt as it would with any official image.  The only things set on package hold (using apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2) to prevent them from overwriting the firmware already on the image.  <br>
 <br>
 If you wish, you may apt-mark unhold those same packages and you will be 100% official Ubuntu.  The firmware is old right now so you will probably have issues, but presumably at some point the firmware will be backported for 18.04.3 and they'll be safe to use on the Pi 4 but it may take some time.<br>

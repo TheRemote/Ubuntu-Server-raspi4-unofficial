@@ -14,6 +14,12 @@ fi
 sudo add-apt-repository ppa:ubuntu-x-swat/updates -yn
 sudo add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
 
+# Fix cups
+if [ -e /etc/modules-load.d/cups-filters.conf ]; then
+  rm /etc/modules-load.d/cups-filters.conf
+  systemctl restart systemd-modules-load cups
+fi
+
 # Install dependencies
 sudo apt update && sudo apt install ofono libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
@@ -160,6 +166,12 @@ if [ -n "`which pulseaudio`" ]; then
         sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
     fi
   fi
+fi
+
+# Fix cups
+if [ -e /etc/modules-load.d/cups-filters.conf ]; then
+  rm /etc/modules-load.d/cups-filters.conf
+  systemctl restart systemd-modules-load cups
 fi
 
 # Enable bluetooth

@@ -158,7 +158,7 @@ function BeforeCleanIMG {
   sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
   # % Remove incompatible RPI firmware / headers / modules
   sudo chroot /mnt /bin/bash << EOF
-  apt purge linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2 ureadahead libnih1 -y
+  apt purge linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2 ureadahead libnih1 whoopsie -y
 EOF
 
   sudo rm -rf /mnt/boot/firmware/*
@@ -777,6 +777,12 @@ if [ -n "`which pulseaudio`" ]; then
         sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
     fi
   fi
+fi
+
+# Fix cups
+if [ -e /etc/modules-load.d/cups-filters.conf ]; then
+  rm /etc/modules-load.d/cups-filters.conf
+  systemctl restart systemd-modules-load cups
 fi
 
 # Enable bluetooth
