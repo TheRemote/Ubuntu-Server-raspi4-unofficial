@@ -17,7 +17,7 @@ This unofficial Ubuntu image is a compilation of all the latest knowledge/firmwa
     <li>Firmware updates from the Raspbian image and the RPi-Distro/firmware-nonfree repository</li>
     <li>3D video hardware acceleration support via vc4-fkms-v3d stack.  Videos / games are giving very high and smooth FPS.</li>
     <li>Includes kernel headers and the full kernel source tree used to build a kernel with your own custom flags (/usr/src/ directory)</li>
-    <li>Can build out-of-tree and DKMS modules.  Type apt-install hello-dkms to build a test DKMS module / get all the dependencies</li>
+    <li>Can build out-of-tree and DKMS modules.</li>
     <li>Full desktop support available via apt install kubuntu-desktop, xubuntu-desktop, xfce4, mate-desktop-environment, etc.)</li>
     <li>5 GHz WiFi channel support</li>
     <li>Working Bluetooth and WiFi</li>
@@ -84,7 +84,7 @@ sudo ./Updater.sh<br>
 <li>Kernel source tree and headers are now included in the image!</li>
 <li>The kernel build source tree is located at rpi-linux-"${KERNEL_VERSION}"</li>
 <li>Ubuntu's first official release has come for the Pi 4 but it's 19.10 only which is not a LTS release and support ends for it in July 2020</li>
-<li>DKMS module building tested (you can test using apt install hello-dkms)</li>
+<li>DKMS module building tested</li>
 <li>If you want custom kernel flags you can go to the /usr/src/rpi-linux folder and run make menuconfig (see BuildPiKernel64bit.sh for more info)</li>
 <li>Rewrote build script to be more readable and reliable.  It's still a work in progress but I'm breaking things down into functions, etc.</li>
 </ul>

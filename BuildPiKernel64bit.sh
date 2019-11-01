@@ -6,7 +6,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="16"
+IMAGE_VERSION="17"
 
 TARGET_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img.xz"
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -154,11 +154,23 @@ function CompactIMG {
 function BeforeCleanIMG {
   echo "Cleaning IMG file (before)"
 
-  # Enter chroot to remove some packages
+  # Prepare chroot
   sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
+  
+  # % Remove flash-kernel hooks to prevent firmware updater from overriding our custom firmware
+  sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
+  sudo rm -f /mnt/etc/kernel/postrm.d/zz-flash-kernel
+  sudo rm -f /mnt/etc/initramfs/post-update.d/flash-kernel
+
+  # Copy resolv.conf for chroot
+  sudo mkdir -p /mnt/run/systemd/resolve
+  sudo touch /mnt/run/systemd/resolve/stub-resolv.conf
+  sudo cat /run/systemd/resolve/stub-resolv.conf | sudo tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
+
   # % Remove incompatible RPI firmware / headers / modules
   sudo chroot /mnt /bin/bash << EOF
   apt purge linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2 ureadahead libnih1 whoopsie -y
+  apt update && apt dist-upgrade -y
 EOF
 
   sudo rm -rf /mnt/boot/firmware/*
@@ -176,11 +188,6 @@ EOF
   sudo rm -rf /mnt/var/log/*.gz /mnt/var/log/*.log*
   sudo rm -rf /mnt/var/lib/initramfs-tools/*
   sudo rm -rf /mnt/var/lib/apt/lists/ports* /mnt/var/lib/apt/lists/*InRelease /mnt/var/lib/apt/lists/*-en /mnt/var/lib/apt/lists/*Packages
-
-  # % Remove flash-kernel hooks to prevent firmware updater from overriding our custom firmware
-  sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
-  sudo rm -f /mnt/etc/kernel/postrm.d/zz-flash-kernel
-  sudo rm -f /mnt/etc/initramfs/post-update.d/flash-kernel
 
   # % Remove old configuration files that we are replacing with our new ones
   sudo rm -f /mnt/etc/rc.local
@@ -344,9 +351,14 @@ cp --recursive --update --archive --no-preserve=ownership ~/firmware-raspbian/* 
 sudo rm -rf ~/firmware-build/.git 
 sudo rm -rf ~/firmware-build/.github
 
+# % Remove unneeded firmware folders
 sudo rm -rf ~/firmware-build/LICEN*
 sudo rm -rf ~/firmware-build/netronome
 sudo rm -rf ~/firmware-build/amdgpu
+sudo rm -rf ~/firmware-build/radeon
+sudo rm -rf ~/firmware-build/raspberrypi
+sudo rm -rf ~/firmware-build/debian
+
 
 # BUILD KERNEL
 cd ~

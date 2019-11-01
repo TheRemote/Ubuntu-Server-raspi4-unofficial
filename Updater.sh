@@ -30,16 +30,16 @@ if [ -d ".updates" ]; then
     cd .updates
     if [ -d "Ubuntu-Server-raspi4-unofficial" ]; then
         cd Ubuntu-Server-raspi4-unofficial
-        git pull
-        git reset --hard
+        sudo git pull
+        sudo git reset --hard origin/master
         cd ..
     else
-        git clone https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial.git
+        sudo git clone https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial.git
     fi
 else
-    mkdir .updates
+    sudo mkdir .updates
     cd .updates
-    git clone https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial.git
+    sudo git clone https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial.git
 fi
 cd ..
 
@@ -129,6 +129,9 @@ sudo groupadd -f spi
 sudo groupadd -f i2c
 sudo groupadd -f gpio
 sudo usermod -aG adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev,spi,i2c,gpio "$SUDO_USER"
+
+# % Clear /var/crash
+sudo rm -rf /var/crash/*
 
 # % Fix /lib/firmware symlink, overlays symlink
 sudo ln -s /lib/firmware /etc/firmware
