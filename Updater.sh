@@ -11,8 +11,9 @@ if [ -z "$SUDO_USER" ]; then
 fi
 
 # Add updated mesa repository for video driver support
-sudo add-apt-repository ppa:ubuntu-x-swat/updates -yn
+sudo add-apt-repository ppa:ubuntu-x-swat/updates -ynr
 sudo add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
+sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
 
 # Fix cups
 if [ -e /etc/modules-load.d/cups-filters.conf ]; then
@@ -23,6 +24,9 @@ fi
 # Install dependencies
 sudo apt update && sudo apt install ofono libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
+
+sudo apt install pulseaudio/bionic-proposed pulseaudio-utils/bionic-proposed libpulsedsp/bionic-proposed libpulse-mainloop-glib0/bionic-proposed
+
 
 echo "Checking for updates ..."
 
@@ -247,7 +251,7 @@ EOF
 fi
 
 sudo touch /etc/apt/preferences.d/proposed-updates 
-cat << EOF | sudo tee /etc/apt/preferences.d/proposed-updates 
+cat << EOF | sudo tee /etc/apt/preferences.d/proposed-updates
 Package: *
 Pin: release a=bionic-proposed
 Pin-Priority: 400
