@@ -195,16 +195,16 @@ EOF2
   if [ -f "$OverrideFile" ]; then
     echo "$OverrideFile exists..."
     if grep -q 'MountFlags' $OverrideFile; then
-      echo "Rewriting existing $OverrideFile"
+      echo "Applying udev MountFlags fix to existing $OverrideFile"
       sed -i 's/MountFlags=.*/MountFlags=shared/g' $OverrideFile
     else
-      echo "Appending $OverrideFile"
+      echo "Appending udev MountFlags fix to $OverrideFile"
       cat << EOF2 >> "$OverrideFile"
 $Override
 EOF2
     fi
   else
-    echo "Creating $OverrideFile"
+    echo "Creating $OverrideFile to apply udev MountFlags fix"
     cat << EOF2 > "$OverrideFile"
 $Override
 EOF2
