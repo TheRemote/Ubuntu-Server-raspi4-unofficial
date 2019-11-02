@@ -397,7 +397,7 @@ if [ ! -d "rpi-linux" ]; then
   PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare dtbs
 
   # % Prepare and build the rpi-linux source - create debian packages to make it easy to update the image
-  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DTC_FLAGS="-@ -H epapr" LOCALVERSION=-v"${IMAGE_VERSION}" KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
+  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DTC_FLAGS="-@ -H epapr" LOCALVERSION=-"${IMAGE_VERSION}" KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
   
   export KERNEL_VERSION=`cat ~/rpi-linux/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 
