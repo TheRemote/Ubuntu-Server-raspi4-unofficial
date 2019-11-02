@@ -184,6 +184,39 @@ if [ -n "`which hciattach`" ]; then
   hciattach /dev/ttyAMA0 bcm43xx 921600
 fi
 
+# Makes udev mounts visible
+if [ "$(systemctl show systemd-udevd | grep 'MountFlags' | cut -d = -f 2)" != "shared" ]; then
+  OverrideFile=/etc/systemd/system/systemd-udevd.service.d/override.conf
+  read -r -d '' Override << EOF2
+[Service]
+MountFlags=shared
+EOF2
+
+  if [ -f "$OverrideFile" ]; then
+    echo "$OverrideFile exists..."
+    if grep -q 'MountFlags' $OverrideFile; then
+      echo "Rewriting existing $OverrideFile"
+      sed -i 's/MountFlags=.*/MountFlags=shared/g' $OverrideFile
+    else
+      echo "Appending $OverrideFile"
+      cat << EOF2 >> "$OverrideFile"
+$Override
+EOF2
+    fi
+  else
+    echo "Creating $OverrideFile"
+    cat << EOF2 > "$OverrideFile"
+$Override
+EOF2
+  fi
+
+  systemctl daemon-reload
+  service systemd-udevd --full-restart
+
+  unset Override
+  unset OverrideFile
+fi
+
 exit 0
 EOF
 sudo chmod +x /etc/rc.local
