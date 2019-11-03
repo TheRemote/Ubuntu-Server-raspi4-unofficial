@@ -257,27 +257,4 @@ Pin: release a=bionic-proposed
 Pin-Priority: 400
 EOF
 
-# % Install raspi-config utility
-echo "Updating raspi-config ..."
-sudo rm -f "raspi-config_20191021_all.deb"
-sudo curl --location 'https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20191021_all.deb' --output 'raspi-config_20191021_all.deb'
-sudo dpkg -i "raspi-config_20191021_all.deb"
-sudo rm -f "raspi-config_20191021_all.deb"
-sudo sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
-sudo sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/bin/raspi-config
-sudo sed -i "s:armhf:arm64:g" /usr/bin/raspi-config
-sudo sed -i "s:/boot/overlays:/boot/firmware/overlays:g" /usr/bin/raspi-config
-sudo sed -i "s:/boot/start:/boot/firmware/start:g" /usr/bin/raspi-config
-sudo sed -i "s:/boot/arm:/boot/firmware/arm:g" /usr/bin/raspi-config
-sudo sed -i "s:/boot :/boot/firmware :g" /usr/bin/raspi-config
-sudo sed -i "s:\\/boot\.:\\/boot\\\/firmware\.:g" /usr/bin/raspi-config
-sudo sed -i 's:dtparam i2c_arm=$SETTING:dtparam -d /boot/firmware/overlays i2c_arm=$SETTING:g' /usr/bin/raspi-config
-sudo sed -i 's:dtparam spi=$SETTING:dtparam -d /boot/firmware/overlays spi=$SETTING:g' /usr/bin/raspi-config
-sudo sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/lib/raspi-config/init_resize.sh
-sudo sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/lib/raspi-config/init_resize.sh
-sudo sed -i "s: /boot/ : /boot/firmware/ :g" /usr/lib/raspi-config/init_resize.sh
-sudo sed -i "s:mount /boot:mount /boot/firmware:g" /usr/lib/raspi-config/init_resize.sh
-sudo sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-pre
-sudo sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-post
-
 echo "Update completed!  Please reboot your system."
