@@ -132,7 +132,7 @@ if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     # Call update-initramfs to finish kernel setup
     sha1sum=$(sha1sum /boot/vmlinux-"${KERNEL_VERSION}")
     echo "$sha1sum  /boot/vmlinux-${KERNEL_VERSION}" | sudo tee /var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
-    sudo update-initramfs -u
+    sudo update-initramfs -k "${KERNEL_VERSION}" -u
 
     echo "Cleaning up downloaded files ..."
     sudo rm -f "updates.tar.xz"
