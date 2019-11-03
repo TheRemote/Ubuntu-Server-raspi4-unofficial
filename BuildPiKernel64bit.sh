@@ -14,7 +14,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="17"
+IMAGE_VERSION="18"
 SOURCE_RELEASE="18.04.3"
 
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -312,13 +312,13 @@ EOF
 
 ##################################################################################################################
 
-# Install dependencies
-echo "Installing dependencies"
-#sudo apt-get install git curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex kpartx libguestfs-tools gawk gcc g++ gfortran cmake texinfo libncurses-dev pkg-config -y
-
 # Get crosschain toolkit
 cd ~
 if [ ! -d "/opt/cross-pi-gcc-9.2.0-64" ]; then
+  # Install dependencies
+  echo "Installing dependencies"
+  sudo apt-get install git curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex kpartx libguestfs-tools gawk gcc g++ gfortran cmake texinfo libncurses-dev pkg-config -y
+
   curl --location "https://sourceforge.net/projects/raspberry-pi-cross-compilers/files/latest/download" --output "cross-pi-gcc-9.2.0-64.tar.gz"
   tar -xf "cross-pi-gcc-9.2.0-64.tar.gz"
   rm -f "cross-pi-gcc-9.2.0-64.tar.gz"
@@ -574,6 +574,7 @@ cd ~
 sudo rm -rf ~/updates
 mkdir -p ~/updates/bootfs/overlays
 mkdir -p ~/updates/rootfs/boot
+mkdir -p ~/updates/rootfs/home
 mkdir -p ~/updates/rootfs/usr/bin
 mkdir -p ~/updates/rootfs/usr/lib/aarch64-linux-gnu
 mkdir -p ~/updates/rootfs/usr/lib/"${KERNEL_VERSION}"/overlays
@@ -809,10 +810,10 @@ apt autoremove -y && apt clean && apt autoclean
 
 # % Prepare source code to be able to build modules
 cd /usr/src/"${KERNEL_VERSION}"
-make -j$(nproc) bcm2711_defconfig
+make -j4 bcm2711_defconfig
 cp -f /boot/config .config
-make -j$(nproc) prepare
-make -j$(nproc) modules_prepare
+make -j4 prepare
+make -j4 modules_prepare
 
 # % Create kernel header/source symlink
 sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/build 
@@ -967,7 +968,7 @@ echo "Compressing updates.tar.xz ..."
 # Prevent overwriting the updater running the updates since it's probably newer than us
 sudo rm -f ~/updates/rootfs/home/Updater.sh
 sudo rm -f ~/updates.tar.xz
-tar -cpJf updates.tar.xz updates/
+tar -cf - updates/ | xz -9e -c --threads=0 - > ~/updates.tar.gz
 
 echo "Build completed"
 

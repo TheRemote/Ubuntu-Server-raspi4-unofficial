@@ -51,12 +51,13 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
-<strong>Development - v18</strong><br>
+<strong>November 3rd - v18 Release</strong><br>
 <ul>
 <li>Update to kernel 4.19.81</li>
-<li>Build script improvements now gets cross chain compiler / qemu user static 4.1 / related build dependencies</li>
 <li>Added udev rule to allow users to use vcgencmd without sudo (thanks xlazom00)</li>
 <li>Fixed udev mounts not being visible (thanks wyuenho for the pull request)</li>
+<li>Build script improvements now gets cross chain compiler / qemu user static 4.1 / related build dependencies</li>
+<li>Build script now retrieves all dependencies for you on a blank Ubuntu 18.04.3 Virtual Machine (if you want to build)</li>
 </ul>
 <br>
 <strong>November 1st 2019 - v17 Release</strong><br>
