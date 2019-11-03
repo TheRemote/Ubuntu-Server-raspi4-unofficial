@@ -110,6 +110,27 @@ if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     echo "Updating kernel and modules ..."
     export KERNEL_VERSION="$(ls updates/rootfs/lib/modules)"
     sudo depmod "${KERNEL_VERSION}"
+
+    # Create kernel and component symlinks
+    sudo rm -f /boot/vmlinux
+    sudo rm -f /boot/System.map
+    sudo rm -f /boot/Module.symvers
+    sudo rm -f /boot/config
+    sudo ln -s /boot/initrd.img-"${KERNEL_VERSION}" /boot/initrd.img
+    sudo ln -s /boot/vmlinux-"${KERNEL_VERSION}" /boot/vmlinux
+    sudo ln -s /boot/System.map-"${KERNEL_VERSION}" /boot/System.map
+    sudo ln -s /boot/Module.symvers-"${KERNEL_VERSION}" /boot/Module.symvers
+    sudo ln -s /boot/config-"${KERNEL_VERSION}" /boot/config
+
+    # Create kernel header symlink
+    sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/build 
+    sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/source
+    sudo ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/build
+    sudo ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
+
+    # Call update-initramfs to finish kernel setup
+    sha1sum=$(sha1sum /boot/vmlinux-"${KERNEL_VERSION}")
+    echo "$sha1sum  /boot/vmlinux-${KERNEL_VERSION}" | sudo tee -a /var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
     sudo update-initramfs -u
 
     echo "Cleaning up downloaded files ..."
@@ -259,3 +280,6 @@ Package: *
 Pin: release a=bionic-proposed
 Pin-Priority: 400
 EOF
+
+echo "Update completed!"
+echo "Note: it is recommended to periodically clean out the old kernel source from /usr/src, it's quite large!"

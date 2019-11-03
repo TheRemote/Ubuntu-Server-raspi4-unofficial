@@ -633,8 +633,8 @@ sync; sync
 sleep "$SLEEP_SHORT"
 
 # % Copy updater script into home folder
-sudo cp -f ~/Updater.sh ~/updates/rootfs/home/Updater.sh
-sudo cp -f ~/raspi-config ~/updates/rootfs/usr/bin
+cp -f ~/Updater.sh ~/updates/rootfs/home/Updater.sh
+cp -f ~/raspi-config ~/updates/rootfs/usr/bin/raspi-config
 
 # % Create cmdline.txt
 cat << EOF | tee ~/updates/bootfs/cmdline.txt
@@ -808,9 +808,6 @@ apt update && apt install curl unzip wireless-tools iw rfkill bluez haveged libn
 # % Apply modified netplan settings
 sudo netplan generate 
 sudo netplan --debug apply
-
-# % Update initramfs
-#update-initramfs -u
 
 # % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
