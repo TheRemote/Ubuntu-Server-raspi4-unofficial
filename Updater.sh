@@ -22,7 +22,7 @@ if [ -e /etc/modules-load.d/cups-filters.conf ]; then
 fi
 
 # Install dependencies
-sudo apt update && sudo apt install ofono libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted lua5.1 build-essential git bc bison flex libssl-dev -y
+sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
 
 echo "Checking for updates ..."
@@ -112,6 +112,7 @@ if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     sudo depmod "${KERNEL_VERSION}"
 
     # Create kernel and component symlinks
+    sudo rm -f /boot/initrd.img
     sudo rm -f /boot/vmlinux
     sudo rm -f /boot/System.map
     sudo rm -f /boot/Module.symvers
@@ -130,7 +131,7 @@ if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
 
     # Call update-initramfs to finish kernel setup
     sha1sum=$(sha1sum /boot/vmlinux-"${KERNEL_VERSION}")
-    echo "$sha1sum  /boot/vmlinux-${KERNEL_VERSION}" | sudo tee -a /var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
+    echo "$sha1sum  /boot/vmlinux-${KERNEL_VERSION}" | sudo tee /var/lib/initramfs-tools/"${KERNEL_VERSION}" >/dev/null;
     sudo update-initramfs -u
 
     echo "Cleaning up downloaded files ..."
