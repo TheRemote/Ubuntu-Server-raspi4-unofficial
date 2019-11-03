@@ -13,11 +13,13 @@ This unofficial Ubuntu image is a compilation of all the latest knowledge/firmwa
 <ul>
     <li>Fully 64-bit kernel and userspace environment</li>
     <li>Updates normally via apt dist-upgrade from the official Ubuntu repositories</li>
+    <li>Raspberry Pi userland utilities included (vcgencmd, dtoverlay, etc.)</li>
+    <li>raspi-config utility included (good for enabling I2C, SPI, etc.)</li>
     <li>Uses the official 4.19.y Raspbian linux kernel built with arm64 flags</li>
     <li>Firmware updates from the Raspbian image and the RPi-Distro/firmware-nonfree repository</li>
     <li>3D video hardware acceleration support via vc4-fkms-v3d stack.  Videos / games are giving very high and smooth FPS.</li>
     <li>Includes kernel headers and the full kernel source tree used to build a kernel with your own custom flags (/usr/src/ directory)</li>
-    <li>Can build out-of-tree and DKMS modules.</li>
+    <li>Can build out-of-tree and DKMS modules</li>
     <li>Full desktop support available via apt install kubuntu-desktop, xubuntu-desktop, xfce4, mate-desktop-environment, etc.)</li>
     <li>5 GHz WiFi channel support</li>
     <li>Working Bluetooth and WiFi</li>
@@ -53,6 +55,8 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <ul>
 <li>Update to kernel 4.19.81</li>
 <li>Build script improvements now gets cross chain compiler / qemu user static 4.1 / related build dependencies</li>
+<li>Added udev rule to allow users to use vcgencmd without sudo (thanks xlazom00)</li>
+<li>Fixed udev mounts not being visible (thanks wyuenho for the pull request)</li>
 </ul>
 <br>
 <strong>November 1st 2019 - v17 Release</strong><br>

@@ -287,6 +287,11 @@ function SetGitTimestamps {
 }
 
 function UpdateIMG {
+  # % Remove flash-kernel hooks to prevent update failure for "Unsupported Platform"
+  sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
+  sudo rm -f /mnt/etc/kernel/postrm.d/zz-flash-kernel
+  sudo rm -f /mnt/etc/initramfs/post-update.d/flash-kernel
+
   # Copy resolv.conf for chroot
   sudo mkdir -p /mnt/run/systemd/resolve
   sudo touch /mnt/run/systemd/resolve/stub-resolv.conf
@@ -389,6 +394,7 @@ if [ ! -f "$RASPBIAN_IMG" ]; then
 fi
 
 # % Extract and compact our source image from the xz if the source image isn't present
+cd ~
 if [ ! -f "$SOURCE_IMG" ]; then
   echo "Extracting Ubuntu 18.04.3 source image ..."
   xzcat --threads=0 "$SOURCE_IMGXZ" > "$SOURCE_IMG"
@@ -399,18 +405,30 @@ if [ ! -f "$SOURCE_IMG" ]; then
   CompactIMG "$SOURCE_IMG"
 fi
 
+# % Create target image from Ubuntu 18.04.3 image
+echo "Creating target image ..."
+if [ ! -f "$TARGET_IMG" ]; then
+  sudo rm -f "$TARGET_IMG"
+fi
+cp -vf "$SOURCE_IMG" "$TARGET_IMG"
+# % Expands the target image by approximately 300MB to help us not run out of space and encounter errors
+echo "Expanding target image free space ..."
+truncate -s +809715200 "$TARGET_IMG"
+sync; sync
+
 # GET USERLAND
 cd ~
 if [ ! -d "userland" ]; then
   git clone https://github.com/raspberrypi/userland userland --single-branch --branch=master --depth=1
   cd userland
-else
-  cd userland
-  if CheckGitUpdates; then
-    git reset --hard origin/master
-  fi
+  PATH=/opt/cross-pi-gcc-9.2.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.2.0-64/lib:$LD_LIBRARY_PATH ./buildme --aarch64
+  cd build/arm-linux/release
+  sudo make package
+  sudo chown -R "$USER" . 
+  tar -xf vmcs_host_apps-1.0.pre-1-Linux.tar.gz
+  SetGitTimestamps
 fi
-PATH=/opt/cross-pi-gcc-9.2.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.2.0-64/lib:$LD_LIBRARY_PATH ./buildme --aarch64
+
 
 # GET FIRMWARE NON-FREE
 cd ~
@@ -438,18 +456,6 @@ else
   fi
 fi
 
-# Create target image from Ubuntu 18.04.3 image
-echo "Creating target image ..."
-if [ ! -f "$TARGET_IMG" ]; then
-  sudo rm -f "$TARGET_IMG"
-fi
-cp -vf "$SOURCE_IMG" "$TARGET_IMG"
-# % Expands the target image by approximately 300MB to help us not run out of space and encounter errors
-echo "Expanding target image free space ..."
-truncate -s +809715200 "$TARGET_IMG"
-sync; sync
-
-
 # MAKE FIRMWARE BUILD DIR
 cd ~
 sudo rm -rf firmware-build
@@ -469,7 +475,6 @@ sudo rm -rf ~/firmware-build/raspberrypi
 sudo rm -rf ~/firmware-build/debian
 sudo rm -rf ~/firmware-build/*-raspi2
 
-
 # BUILD KERNEL
 cd ~
 if [ ! -d "rpi-linux" ]; then
@@ -479,7 +484,7 @@ if [ ! -d "rpi-linux" ]; then
   git checkout origin/rpi-4.19.y
 
   # Make copy of source code if not present
-  if [ ! -d "rpi-source" ]; then
+  if [ ! -d "~/rpi-source" ]; then
     mkdir ~/rpi-source
     cp -rf ~/rpi-linux/* ~/rpi-source
     rm ~/rpi-source/.git ~/rpi-source/.github
