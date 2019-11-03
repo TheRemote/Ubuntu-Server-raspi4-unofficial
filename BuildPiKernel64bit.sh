@@ -25,7 +25,6 @@ RASPBIAN_IMG="2019-09-26-raspbian-buster-lite.img"
 RASPBIAN_IMGZIP="2019-09-26-raspbian-buster-lite.img.zip"
 UBUNTU_IMG="ubuntu-19.10-preinstalled-server-arm64+raspi3.img"
 UBUNTU_IMGXZ="ubuntu-19.10-preinstalled-server-arm64+raspi3.img.xz"
-RASPICFG_PACKAGE="raspi-config_20191021_all.deb"
 
 export SLEEP_SHORT="0.1"
 export SLEEP_LONG="1"
@@ -630,6 +629,7 @@ sleep "$SLEEP_SHORT"
 
 # % Copy updater script into home folder
 sudo cp -f ~/Updater.sh ~/updates/rootfs/home/Updater.sh
+sudo cp -f ~/raspi-config ~/updates/rootfs/usr/bin
 
 # % Create cmdline.txt
 cat << EOF | tee ~/updates/bootfs/cmdline.txt
@@ -794,33 +794,11 @@ sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
 
 # % Install wireless tools and bluetooth (wireless-tools, iw, rfkill, bluez)
 # % Install haveged - prevents low entropy issues from making the Pi take a long time to start up
-# % Install raspi-config dependencies (libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils)
+# % Install raspi-config dependencies (libnewt0.52 whiptail lua5.1)
 # % Install dependencies to build Pi modules (git build-essential bc bison flex libssl-dev device-tree-compiler)
 # % Install curl and unzip utilities
 # % Install missing libblockdev-mdraid
-apt update && apt install curl unzip wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils git bc bison flex libssl-dev libblockdev-mdraid2 -y && apt dist-upgrade -y
-
-# % Install raspi-config utility
-rm -f "$RASPICFG_PACKAGE"
-wget "https://archive.raspberrypi.org/debian/pool/main/r/raspi-config/${RASPICFG_PACKAGE}"
-dpkg -i "$RASPICFG_PACKAGE"
-rm -f "raspi-config_20191021_all.deb"
-sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/bin/raspi-config
-sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/bin/raspi-config
-sed -i "s:armhf:arm64:g" /usr/bin/raspi-config
-sed -i "s:/boot/overlays:/boot/firmware/overlays:g" /usr/bin/raspi-config
-sed -i "s:/boot/start:/boot/firmware/start:g" /usr/bin/raspi-config
-sed -i "s:/boot/arm:/boot/firmware/arm:g" /usr/bin/raspi-config
-sed -i "s:/boot :/boot/firmware :g" /usr/bin/raspi-config
-sed -i "s:\\/boot\.:\\/boot\\\/firmware\.:g" /usr/bin/raspi-config
-sed -i 's:dtparam i2c_arm=$SETTING:dtparam -d /boot/firmware/overlays i2c_arm=$SETTING:g' /usr/bin/raspi-config
-sed -i 's:dtparam spi=$SETTING:dtparam -d /boot/firmware/overlays spi=$SETTING:g' /usr/bin/raspi-config
-sed -i "s:/boot/cmdline.txt:/boot/firmware/cmdline.txt:g" /usr/lib/raspi-config/init_resize.sh
-sed -i "s:/boot/config.txt:/boot/firmware/config.txt:g" /usr/lib/raspi-config/init_resize.sh
-sed -i "s: /boot/ : /boot/firmware/ :g" /usr/lib/raspi-config/init_resize.sh
-sed -i "s:mount /boot:mount /boot/firmware:g" /usr/lib/raspi-config/init_resize.sh
-sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-pre
-sed -i "s:su pi:su $SUDO_USER:g" /usr/bin/dtoverlay-post
+apt update && apt install curl unzip wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev libblockdev-mdraid2 -y && apt dist-upgrade -y
 
 # % Apply modified netplan settings
 sudo netplan generate 
@@ -943,6 +921,9 @@ EOF2
   unset Override
   unset OverrideFile
 fi
+
+# Remove triggerhappy bugged socket that causes problems for udev on Pis
+sudo rm -f /lib/systemd/system/triggerhappy.socket
 
 exit 0
 EOF

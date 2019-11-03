@@ -22,7 +22,7 @@ if [ -e /etc/modules-load.d/cups-filters.conf ]; then
 fi
 
 # Install dependencies
-sudo apt update && sudo apt install ofono libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
+sudo apt update && sudo apt install ofono libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted lua5.1 build-essential git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
 
 echo "Checking for updates ..."
@@ -84,7 +84,7 @@ if [ "$answer" == "${answer#[Yy]}" ]; then
 fi
 
 # Cleaning up old stuff
-sudo apt purge libraspberrypi-bin -y
+sudo apt purge libraspberrypi-bin raspi-config -y
 
 echo "Downloading update package ..."
 if [ -e "updates.tar.xz" ]; then rm -f "updates.tar.xz"; fi
@@ -221,6 +221,9 @@ EOF2
   unset OverrideFile
 fi
 
+# Remove triggerhappy bugged socket that causes problems for udev on Pis
+sudo rm -f /lib/systemd/system/triggerhappy.socket
+
 exit 0
 EOF
 sudo chmod +x /etc/rc.local
@@ -256,5 +259,3 @@ Package: *
 Pin: release a=bionic-proposed
 Pin-Priority: 400
 EOF
-
-echo "Update completed!  Please reboot your system."
