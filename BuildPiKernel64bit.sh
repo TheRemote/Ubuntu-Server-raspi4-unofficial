@@ -717,7 +717,8 @@ echo "$sha1sum  /boot/vmlinux-${KERNEL_VERSION}" | sudo tee -a /mnt/var/lib/init
 cd ~
 
 # % Add udev rule so users can use vcgencmd without sudo
-sudo echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" > /mnt/etc/udev/rules.d/10-local-rpi.rules
+sudo touch /mnt/etc/udev/rules.d/10-local-rpi.rules
+echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" | sudo tee /mnt/etc/udev/rules.d/10-local-rpi.rules
 
 # % Fix WiFi
 # % The Pi 4 version returns boardflags3=0x44200100
@@ -786,12 +787,6 @@ sudo ln -s vmlinux-"${KERNEL_VERSION}" vmlinux
 sudo ln -s System.map-"${KERNEL_VERSION}" System.map
 sudo ln -s Module.symvers-"${KERNEL_VERSION}" Module.symvers
 sudo ln -s config-"${KERNEL_VERSION}" config
-
-# % Create kernel header symlink
-sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/build 
-sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/source
-sudo ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/build
-sudo ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
 cd /
 
 # % Add updated mesa repository for video driver support
@@ -803,7 +798,7 @@ sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
 # % Install dependencies to build Pi modules (git build-essential bc bison flex libssl-dev device-tree-compiler)
 # % Install curl and unzip utilities
 # % Install missing libblockdev-mdraid
-apt update && apt install curl unzip wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev libblockdev-mdraid2 -y && apt dist-upgrade -y
+apt update && apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
 
 # % Apply modified netplan settings
 sudo netplan generate 
@@ -812,8 +807,24 @@ sudo netplan --debug apply
 # % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
 
+# % Prepare source code to be able to build modules
+cd /usr/src/"${KERNEL_VERSION}"
+make -j$(nproc) bcm2711_defconfig
+cp -f /boot/config .config
+make -j$(nproc) prepare
+make -j$(nproc) modules_prepare
+
+# % Create kernel header/source symlink
+sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/build 
+sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/source
+sudo ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/build
+sudo ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
+
 EOF
 echo "The chroot container has exited"
+
+# % Grab our updated built source code for updates.tar.gz
+cp -rf /mnt/usr/src/"${KERNEL_VERSION}"/* ~/rpi-source
 
 # % Clean up after ourselves and remove qemu static binary
 sudo rm -f /mnt/usr/bin/qemu-aarch64-static
@@ -949,7 +960,7 @@ CompactIMG "$TARGET_IMG"
 echo "Compressing final img.xz file ..."
 sleep "$SLEEP_SHORT"
 sudo rm -f "$TARGET_IMGXZ"
-xz -9 --extreme --force --keep --threads=0 --quiet "$TARGET_IMG"
+xz -9e --force --keep --threads=0 --quiet "$TARGET_IMG"
 
 # Compress our updates used for the autoupdater
 echo "Compressing updates.tar.xz ..."
