@@ -49,6 +49,12 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
+<strong>Development - v18</strong><br>
+<ul>
+<li>Update to kernel 4.19.81</li>
+<li>Build script improvements now gets cross chain compiler / qemu user static 4.1 / related build dependencies</li>
+</ul>
+<br>
 <strong>November 1st 2019 - v17 Release</strong><br>
 <ul>
 <li>Fixed issue with CUPS preventing firmware modules from loading in xubuntu-desktop</li>

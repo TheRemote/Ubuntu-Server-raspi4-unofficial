@@ -66,3 +66,8 @@ set_kernel_config CONFIG_ARM64_ERRATUM_834220 y
 # Default power mode
 unset_kernel_config CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE
 set_kernel_config CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND y
+
+# HDMI CRC
+set_kernel_config CONFIG_MEDIA_CEC_RC n
+set_kernel_config SMS_SIANO_RC n
+

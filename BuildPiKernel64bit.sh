@@ -1,5 +1,13 @@
 #!/bin/bash
 #
+# WARNING: This script is meant to be ran in a *throwaway* Ubuntu 18.04.3 Virtual Machine (VM)
+# - Absolutely no steps have been taken to make the process "secure" or "safe" for your main machine
+# - It assumes the home directory is safe to build in (it's not on a main system)
+# - It installs hundreds of development packages that you only need to build the image (would bog down a main system)
+# - It chroots into at least 4 different images during the build and chroots leak (causing instability/security concerns)
+# - If things go wrong with the type of commands used in the script your system can get borked *real quick* (like instantly)
+# As long as you follow this warning the script is fairly painless to work with!
+#
 # More information available at:
 # https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/
 # https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
@@ -7,13 +15,16 @@
 # CONFIGURATION
 
 IMAGE_VERSION="17"
-
-TARGET_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img.xz"
-TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
 SOURCE_RELEASE="18.04.3"
-SOURCE_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
+
+TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
+TARGET_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img.xz"
 SOURCE_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img"
+SOURCE_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
 RASPBIAN_IMG="2019-09-26-raspbian-buster-lite.img"
+RASPBIAN_IMGZIP="2019-09-26-raspbian-buster-lite.img.zip"
+UBUNTU_IMG="ubuntu-19.10-preinstalled-server-arm64+raspi3.img"
+UBUNTU_IMGXZ="ubuntu-19.10-preinstalled-server-arm64+raspi3.img.xz"
 RASPICFG_PACKAGE="raspi-config_20191021_all.deb"
 
 export SLEEP_SHORT="0.1"
@@ -78,7 +89,11 @@ function MountIMGPartitions {
   sudo mount "/dev/mapper/${1}p2" /mnt
  
   # % Mount the bootfs on /mnt/boot/firmware (/boot/firmware)
-  sudo mount "/dev/mapper/${1}p1" /mnt/boot/firmware
+  if [ -d "/mnt/boot/firmware" ]; then
+    sudo mount "/dev/mapper/${1}p1" /mnt/boot/firmware
+  else
+    sudo mount "/dev/mapper/${1}p1" /mnt/boot
+  fi
 
   sync; sync
   sleep "$SLEEP_SHORT"
@@ -88,13 +103,17 @@ function UnmountIMGPartitions {
   sync; sync
 
   # % Unmount boot and root partitions
-  echo "Unmounting /mnt/boot/firmware"
+  echo "Unmounting partitions ..."
   while mountpoint -q /mnt/boot/firmware && ! sudo umount /mnt/boot/firmware; do
     sync; sync
     sleep "$SLEEP_SHORT"
   done
 
-  echo "Unmounting /mnt"
+  while mountpoint -q /mnt/boot && ! sudo umount /mnt/boot; do
+    sync; sync
+    sleep "$SLEEP_SHORT"
+  done
+
   while mountpoint -q /mnt && ! sudo umount /mnt; do
     sync; sync
     sleep "$SLEEP_SHORT"
@@ -154,9 +173,6 @@ function CompactIMG {
 function BeforeCleanIMG {
   echo "Cleaning IMG file (before)"
 
-  # Prepare chroot
-  sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
-  
   # % Remove flash-kernel hooks to prevent firmware updater from overriding our custom firmware
   sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
   sudo rm -f /mnt/etc/kernel/postrm.d/zz-flash-kernel
@@ -167,6 +183,9 @@ function BeforeCleanIMG {
   sudo touch /mnt/run/systemd/resolve/stub-resolv.conf
   sudo cat /run/systemd/resolve/stub-resolv.conf | sudo tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
 
+  # Prepare chroot
+  sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
+  
   # % Remove incompatible RPI firmware / headers / modules
   sudo chroot /mnt /bin/bash << EOF
   apt purge linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2 ureadahead libnih1 whoopsie -y
@@ -268,20 +287,111 @@ function SetGitTimestamps {
   done
 }
 
-# INSTALL DEPENDENCIES
+function UpdateIMG {
+  # Copy resolv.conf for chroot
+  sudo mkdir -p /mnt/run/systemd/resolve
+  sudo touch /mnt/run/systemd/resolve/stub-resolv.conf
+  sudo cat /run/systemd/resolve/stub-resolv.conf | sudo tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
+
+  # Prepare chroot
+  if [ -d "/mnt/boot/firmware" ]; then
+    sudo cp -f /usr/bin/qemu-aarch64-static /mnt/usr/bin
+  else
+    sudo cp -f /usr/bin/qemu-arm-static /mnt/usr/bin
+  fi
+  
+  # % Remove incompatible RPI firmware / headers / modules
+  sudo chroot /mnt /bin/bash << EOF
+  apt update && apt dist-upgrade -y
+EOF
+}
+
+##################################################################################################################
+
+# Install dependencies
 echo "Installing dependencies"
-#sudo apt-get install git curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex kpartx qemu-user-static -y
+#sudo apt-get install git curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex kpartx libguestfs-tools gawk gcc g++ gfortran cmake texinfo libncurses-dev pkg-config -y
+
+# Get crosschain toolkit
+cd ~
+if [ ! -d "/opt/cross-pi-gcc-9.2.0-64" ]; then
+  curl --location "https://sourceforge.net/projects/raspberry-pi-cross-compilers/files/latest/download" --output "cross-pi-gcc-9.2.0-64.tar.gz"
+  tar -xf "cross-pi-gcc-9.2.0-64.tar.gz"
+  rm -f "cross-pi-gcc-9.2.0-64.tar.gz"
+  sudo mv cross-pi-gcc-9.2.0-64 /opt
+fi
+
+# Get latest QEMU
+cd ~
+if [ ! -d "qemu" ]; then
+  sudo apt-get build-dep qemu -y
+  git clone https://git.qemu.org/git/qemu.git --single-branch --depth=1
+  cd ~/qemu
+  git submodule init
+  git submodule update --recursive
+  ./configure --static --target-list=aarch64-linux-user,arm-linux-user
+  make -j$(nproc)
+  cd aarch64-linux-user
+  sudo cp -f qemu-aarch64 qemu-aarch64-static
+  sudo cp -f qemu-aarch64-static /usr/bin
+  cd ..
+  cd arm-linux-user
+  sudo cp -f qemu-arm qemu-arm-static
+  sudo cp -f qemu-arm-static /usr/bin
+fi
 
 # PREPARE IMAGE
+cd ~
 PrepareIMG
 
 # % Get Raspberry Pi 3 Ubuntu source image 
 if [ ! -f "$SOURCE_IMGXZ" ]; then
-  wget http://cdimage.ubuntu.com/ubuntu/releases/$SOURCE_RELEASE/release/$SOURCE_IMGXZ
+  echo "Retrieving Ubuntu 18.04.3 source image ..."
+  wget http://cdimage.ubuntu.com/ubuntu/releases/"$SOURCE_RELEASE"/release/"$SOURCE_IMGXZ"
+fi
+
+# % Get Ubuntu source image 
+if [ ! -f "$UBUNTU_IMGXZ" ]; then
+  echo "Retrieving Ubuntu 19.10 source image ..."
+  wget http://cdimage.ubuntu.com/releases/eoan/release/ubuntu-19.10-preinstalled-server-arm64+raspi3.img.xz
+fi
+
+if [ ! -f "$RASPBIAN_IMGZIP" ]; then
+  echo "Retrieving Raspbian source image ..."
+  curl --location "https://downloads.raspberrypi.org/raspbian_lite_latest" --output "$RASPBIAN_IMGZIP"
+fi
+
+# % Extract and compact our source image from the xz if the source image isn't present
+if [ ! -f "$UBUNTU_IMG" ]; then
+  echo "Extracting Ubuntu 19.10 source image ..."
+  xzcat --threads=0 "$UBUNTU_IMGXZ" > "$UBUNTU_IMG"
+  MountIMG "$UBUNTU_IMG"
+  MountIMGPartitions "${MOUNT_IMG}"
+  UpdateIMG
+  sudo rm -rf ~/firmware-ubuntu-1910
+  sudo mkdir ~/firmware-ubuntu-1910
+  sudo cp -arf /mnt/lib/firmware/* ~/firmware-ubuntu-1910
+  sudo chown -R "$USER" ~/firmware-ubuntu-1910
+  UnmountIMG "$UBUNTU_IMG"
+fi
+
+# % Extract and compact our source image from the xz if the source image isn't present
+if [ ! -f "$RASPBIAN_IMG" ]; then
+  echo "Extracting Raspbian source image ..."
+  unzip $RASPBIAN_IMGZIP
+  MountIMG "$RASPBIAN_IMG"
+  MountIMGPartitions "${MOUNT_IMG}"
+  UpdateIMG
+  sudo rm -rf ~/firmware-raspbian
+  sudo mkdir ~/firmware-raspbian
+  sudo cp -arf /mnt/lib/firmware/* ~/firmware-raspbian
+  sudo chown -R "$USER" ~/firmware-raspbian
+  UnmountIMG "$RASPBIAN_IMG"
 fi
 
 # % Extract and compact our source image from the xz if the source image isn't present
 if [ ! -f "$SOURCE_IMG" ]; then
+  echo "Extracting Ubuntu 18.04.3 source image ..."
   xzcat --threads=0 "$SOURCE_IMGXZ" > "$SOURCE_IMG"
   MountIMG "$SOURCE_IMG"
   MountIMGPartitions "${MOUNT_IMG}"
@@ -289,16 +399,6 @@ if [ ! -f "$SOURCE_IMG" ]; then
   UnmountIMG "$SOURCE_IMG"
   CompactIMG "$SOURCE_IMG"
 fi
-
-# % Copy fresh copy of our source image to be our target image
-if [ ! -f "$TARGET_IMG" ]; then
-  sudo rm -f "$TARGET_IMG"
-fi
-cp -vf "$SOURCE_IMG" "$TARGET_IMG"
-# % Expands the target image by approximately 300MB to help us not run out of space and encounter errors
-echo "Expanding image free space ..."
-truncate -s +809715200 "$TARGET_IMG"
-sync; sync
 
 # GET USERLAND
 cd ~
@@ -311,7 +411,7 @@ else
     git reset --hard origin/master
   fi
 fi
-./buildme --aarch64
+PATH=/opt/cross-pi-gcc-9.2.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.2.0-64/lib:$LD_LIBRARY_PATH ./buildme --aarch64
 
 # GET FIRMWARE NON-FREE
 cd ~
@@ -330,16 +430,26 @@ fi
 # GET FIRMWARE
 cd ~
 if [ ! -d "firmware" ]; then
-  git clone https://github.com/raspberrypi/firmware firmware --single-branch --branch=master
+  git clone https://github.com/raspberrypi/firmware firmware --single-branch --branch=master --depth=1
   cd firmware
-  SetGitTimestamps
 else
   cd firmware
   if CheckGitUpdates; then
     git reset --hard origin/master
-    SetGitTimestamps
   fi
 fi
+
+# Create target image from Ubuntu 18.04.3 image
+echo "Creating target image ..."
+if [ ! -f "$TARGET_IMG" ]; then
+  sudo rm -f "$TARGET_IMG"
+fi
+cp -vf "$SOURCE_IMG" "$TARGET_IMG"
+# % Expands the target image by approximately 300MB to help us not run out of space and encounter errors
+echo "Expanding target image free space ..."
+truncate -s +809715200 "$TARGET_IMG"
+sync; sync
+
 
 # MAKE FIRMWARE BUILD DIR
 cd ~
@@ -358,6 +468,7 @@ sudo rm -rf ~/firmware-build/amdgpu
 sudo rm -rf ~/firmware-build/radeon
 sudo rm -rf ~/firmware-build/raspberrypi
 sudo rm -rf ~/firmware-build/debian
+sudo rm -rf ~/firmware-build/*-raspi2
 
 
 # BUILD KERNEL
@@ -376,7 +487,7 @@ if [ ! -d "rpi-linux" ]; then
   fi
 
   # CONFIGURE / MAKE
-  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
+  PATH=/opt/cross-pi-gcc-9.2.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.2.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
 
   # % Run conform_config scripts which fix kernel flags to work correctly in arm64
   wget https://raw.githubusercontent.com/sakaki-/bcm2711-kernel-bis/master/conform_config.sh
@@ -394,18 +505,18 @@ if [ ! -d "rpi-linux" ]; then
 
   # % Run prepare to register all our .config changes
   cd ~/rpi-linux
-  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare dtbs
+  PATH=/opt/cross-pi-gcc-9.2.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.2.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare dtbs
 
   # % Prepare and build the rpi-linux source - create debian packages to make it easy to update the image
-  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DTC_FLAGS="-@ -H epapr" LOCALVERSION=-"${IMAGE_VERSION}" KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
+  PATH=/opt/cross-pi-gcc-9.2.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.2.0-64/lib:$LD_LIBRARY_PATH make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DTC_FLAGS="-@ -H epapr" LOCALVERSION=-"${IMAGE_VERSION}" KDEB_PKGVERSION="${IMAGE_VERSION}" deb-pkg
   
   export KERNEL_VERSION=`cat ~/rpi-linux/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 
   # % Make DTBOs
   # % Build kernel modules
-  PATH=/opt/cross-pi-gcc-9.1.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.1.0-64/lib:$LD_LIBRARY_PATH sudo make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
+  PATH=/opt/cross-pi-gcc-9.2.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.2.0-64/lib:$LD_LIBRARY_PATH sudo make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- DEPMOD=echo MODLIB=./lib/modules/"${KERNEL_VERSION}" INSTALL_FW_PATH=./lib/firmware modules_install
   sudo depmod --basedir . "${KERNEL_VERSION}"
-  sudo chown -R "$SUDO_USER" .
+  sudo chown -R "$USER" .
 else
   export KERNEL_VERSION=`cat ~/rpi-linux/include/generated/utsrelease.h | sed -e 's/.*"\(.*\)".*/\1/'`
 fi
@@ -600,6 +711,9 @@ echo "$sha1sum  /boot/vmlinux-${KERNEL_VERSION}" | sudo tee -a /mnt/var/lib/init
 # QUIRKS
 cd ~
 
+# % Add udev rule so users can use vcgencmd without sudo
+sudo echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" > /mnt/etc/udev/rules.d/10-local-rpi.rules
+
 # % Fix WiFi
 # % The Pi 4 version returns boardflags3=0x44200100
 # % The Pi 3 version returns boardflags3=0x48200100cd
@@ -676,7 +790,7 @@ sudo ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
 cd /
 
 # % Add updated mesa repository for video driver support
-add-apt-repository ppa:ubuntu-x-swat/updates -yn
+sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
 
 # % Install wireless tools and bluetooth (wireless-tools, iw, rfkill, bluez)
 # % Install haveged - prevents low entropy issues from making the Pi take a long time to start up
@@ -795,6 +909,39 @@ fi
 if [ -n "`which hciattach`" ]; then
   echo "Attaching Bluetooth controller ..."
   hciattach /dev/ttyAMA0 bcm43xx 921600
+fi
+
+# Makes udev mounts visible
+if [ "$(systemctl show systemd-udevd | grep 'MountFlags' | cut -d = -f 2)" != "shared" ]; then
+  OverrideFile=/etc/systemd/system/systemd-udevd.service.d/override.conf
+  read -r -d '' Override << EOF2
+[Service]
+MountFlags=shared
+EOF2
+
+  if [ -f "$OverrideFile" ]; then
+    echo "$OverrideFile exists..."
+    if grep -q 'MountFlags' $OverrideFile; then
+      echo "Applying udev MountFlags fix to existing $OverrideFile"
+      sed -i 's/MountFlags=.*/MountFlags=shared/g' $OverrideFile
+    else
+      echo "Appending udev MountFlags fix to $OverrideFile"
+      cat << EOF2 >> "$OverrideFile"
+$Override
+EOF2
+    fi
+  else
+    echo "Creating $OverrideFile to apply udev MountFlags fix"
+    cat << EOF2 > "$OverrideFile"
+$Override
+EOF2
+  fi
+
+  systemctl daemon-reload
+  service systemd-udevd --full-restart
+
+  unset Override
+  unset OverrideFile
 fi
 
 exit 0

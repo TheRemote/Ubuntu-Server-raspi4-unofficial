@@ -25,9 +25,6 @@ fi
 sudo apt update && sudo apt install ofono libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils build-essential git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
 
-sudo apt install pulseaudio/bionic-proposed pulseaudio-utils/bionic-proposed libpulsedsp/bionic-proposed libpulse-mainloop-glib0/bionic-proposed
-
-
 echo "Checking for updates ..."
 
 if [ -d ".updates" ]; then
@@ -149,6 +146,9 @@ sudo sed -i "s:0x48200100:0x44200100:g" /lib/firmware/brcm/brcmfmac43455-sdio.tx
 # % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
 sudo sed -i "s/ib_iser/#ib_iser/g" /lib/modules-load.d/open-iscsi.conf
 sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /lib/modules-load.d/open-iscsi.conf
+
+# % Add udev rule so users can use vcgencmd without sudo
+sudo echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" > /etc/udev/rules.d/10-local-rpi.rules
 
 # % Fix update-initramfs mdadm.conf warning
 sudo grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo tee -a /etc/mdadm/mdadm.conf >/dev/null;
