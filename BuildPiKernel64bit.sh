@@ -889,6 +889,13 @@ if [ -n "`which pulseaudio`" ]; then
         sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
     fi
   fi
+
+  GrepCheck=$(cat /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf | grep "device-strings = fake")
+  if [ ! -z "$GrepCheck" ]; then
+    sed -i '/^\[Mapping analog-mono\]/,+1s/device-strings = hw\:\%f.*/device-strings = fake\:\%f/' /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf
+    pulseaudio -k
+    pulseaudio --start
+  fi
 fi
 
 # Fix cups
@@ -968,7 +975,7 @@ echo "Compressing updates.tar.xz ..."
 # Prevent overwriting the updater running the updates since it's probably newer than us
 sudo rm -f ~/updates/rootfs/home/Updater.sh
 sudo rm -f ~/updates.tar.xz
-tar -cf - updates/ | xz -9e -c --threads=0 - > ~/updates.tar.gz
+tar -cf - updates/ | xz -9e -c --threads=0 - > ~/updates.tar.xz
 
 echo "Build completed"
 

@@ -71,3 +71,7 @@ set_kernel_config CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND y
 set_kernel_config CONFIG_MEDIA_CEC_RC n
 set_kernel_config SMS_SIANO_RC n
 
+# Enable kernel audit
+set_kernel_config CONFIG_AUDIT y
+set_kernel_config CONFIG_HAVE_ARCH_AUDITSYSCALL y
+set_kernel_config CONFIG_AUDITSYSCALL y

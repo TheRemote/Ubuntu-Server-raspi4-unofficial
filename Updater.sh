@@ -10,6 +10,8 @@ if [ -z "$SUDO_USER" ]; then
     exit
 fi
 
+echo "Checking dependencies ..."
+
 # Add updated mesa repository for video driver support
 sudo add-apt-repository ppa:ubuntu-x-swat/updates -ynr
 sudo add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
@@ -195,6 +197,13 @@ if [ -n "`which pulseaudio`" ]; then
         sed -i 's/tsched=0//g' /etc/pulse/default.pa
         sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
     fi
+  fi
+
+  GrepCheck=$(cat /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf | grep "device-strings = fake")
+  if [ ! -z "$GrepCheck" ]; then
+    sed -i '/^\[Mapping analog-mono\]/,+1s/device-strings = hw\:\%f.*/device-strings = fake\:\%f/' /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf
+    pulseaudio -k
+    pulseaudio --start
   fi
 fi
 
