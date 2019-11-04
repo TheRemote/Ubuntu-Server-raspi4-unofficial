@@ -186,7 +186,7 @@ cat << \EOF | sudo tee /etc/rc.local
 # rc.local
 #
 
-# Fix sound
+# Fix sound by setting tsched = 0 and disabling analog mapping so Pulse maps the devices in stereo
 if [ -n "`which pulseaudio`" ]; then
   GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0")
   if [ -z "$GrepCheck" ]; then
