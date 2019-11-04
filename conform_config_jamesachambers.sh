@@ -75,3 +75,4 @@ set_kernel_config SMS_SIANO_RC n
 set_kernel_config CONFIG_AUDIT y
 set_kernel_config CONFIG_HAVE_ARCH_AUDITSYSCALL y
 set_kernel_config CONFIG_AUDITSYSCALL y
+set_kernel_config NETFILTER_XT_TARGET_AUDIT m
