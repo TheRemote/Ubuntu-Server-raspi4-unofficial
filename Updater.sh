@@ -200,7 +200,7 @@ if [ -n "`which pulseaudio`" ]; then
   fi
 
   GrepCheck=$(cat /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf | grep "device-strings = fake")
-  if [ ! -z "$GrepCheck" ]; then
+  if [ -z "$GrepCheck" ]; then
     sed -i '/^\[Mapping analog-mono\]/,+1s/device-strings = hw\:\%f.*/device-strings = fake\:\%f/' /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf
     pulseaudio -k
     pulseaudio --start
