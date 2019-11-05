@@ -221,6 +221,9 @@ fi
 
 # Makes udev mounts visible
 if [ "$(systemctl show systemd-udevd | grep 'MountFlags' | cut -d = -f 2)" != "shared" ]; then
+  if [ ! -d "/etc/systemd/system/systemd-udevd.service.d/" ]; then
+    mkdir -p "/etc/systemd/system/systemd-udevd.service.d/"
+  fi
   OverrideFile=/etc/systemd/system/systemd-udevd.service.d/override.conf
   read -r -d '' Override << EOF2
 [Service]
