@@ -127,8 +127,8 @@ set_kernel_config CONFIG_SECURITY_APPARMOR_DEBUG n
 set_kernel_config CONFIG_SECURITY_LOADPIN n
 set_kernel_config CONFIG_DEFAULT_SECURITY_APPARMOR y
 set_kernel_config CONFIG_INTEGRITY n
-unset_kernel_config CONFIG_SECURITY_SMACK
-unset_kernel_config CONFIG_SECURITY_TOMOYO
+set_kernel_config CONFIG_SECURITY_SMACK n
+set_kernel_config CONFIG_SECURITY_TOMOYO n
 
 # Performance
 set_kernel_config CONFIG_ARM64_PMEM y

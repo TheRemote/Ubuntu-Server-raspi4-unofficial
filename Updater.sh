@@ -52,7 +52,7 @@ UpdatesHashNew=$(sha1sum ".updates/Ubuntu-Server-raspi4-unofficial/Updater.sh" |
 
 if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
     echo "Updater has update available.  Updating now ..."
-    sudo rm -f Updater.sh
+    sudo rm -rf Updater.sh
     sudo cp -f .updates/Ubuntu-Server-raspi4-unofficial/Updater.sh Updater.sh
     sudo chmod +x Updater.sh
     exec $(readlink -f "Updater.sh")
@@ -89,7 +89,7 @@ fi
 sudo apt purge libraspberrypi-bin raspi-config -y
 
 echo "Downloading update package ..."
-if [ -e "updates.tar.xz" ]; then rm -f "updates.tar.xz"; fi
+if [ -e "updates.tar.xz" ]; then rm -rf "updates.tar.xz"; fi
 sudo curl --location "https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/releases/download/v${LatestRelease}/updates.tar.xz" --output "updates.tar.xz"
 if [ ! -e "updates.tar.xz" ]; then
     echo "Update has failed to download -- please try again later"
@@ -103,10 +103,10 @@ sudo tar -xf "updates.tar.xz"
 
 if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     echo "Copying updates to rootfs ..."
-    sudo cp --verbose --archive --no-preserve=ownership updates/rootfs/* /
+    sudo cp -rav --no-preserve=ownership updates/rootfs/* /
 
     echo "Copying updates to bootfs ..."
-    sudo cp --verbose --archive --no-preserve=ownership updates/bootfs/* /boot/firmware
+    sudo cp -rav --no-preserve=ownership updates/bootfs/* /boot/firmware
 
     # Update initramfs so our new kernel and modules are picked up
     echo "Updating kernel and modules ..."
@@ -114,11 +114,11 @@ if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     sudo depmod "${KERNEL_VERSION}"
 
     # Create kernel and component symlinks
-    sudo rm -f /boot/initrd.img
-    sudo rm -f /boot/vmlinux
-    sudo rm -f /boot/System.map
-    sudo rm -f /boot/Module.symvers
-    sudo rm -f /boot/config
+    sudo rm -rf /boot/initrd.img
+    sudo rm -rf /boot/vmlinux
+    sudo rm -rf /boot/System.map
+    sudo rm -rf /boot/Module.symvers
+    sudo rm -rf /boot/config
     sudo ln -s /boot/initrd.img-"${KERNEL_VERSION}" /boot/initrd.img
     sudo ln -s /boot/vmlinux-"${KERNEL_VERSION}" /boot/vmlinux
     sudo ln -s /boot/System.map-"${KERNEL_VERSION}" /boot/System.map
@@ -137,14 +137,14 @@ if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     sudo update-initramfs -k "${KERNEL_VERSION}" -u
 
     echo "Cleaning up downloaded files ..."
-    sudo rm -f "updates.tar.xz"
+    sudo rm -rf "updates.tar.xz"
     sudo rm -rf updates
 
     # Save our new updated release to .lastupdate file
     sudo touch /etc/imgrelease
     echo "$LatestRelease" | sudo tee /etc/imgrelease >/dev/null;
 else
-    sudo rm -f "updates.tar.xz"
+    sudo rm -rf "updates.tar.xz"
     echo "Update has failed to extract.  Please try again later!"
     exit
 fi
@@ -162,25 +162,13 @@ sudo rm -rf /var/crash/*
 sudo ln -s /lib/firmware /etc/firmware
 sudo ln -s /boot/firmware/overlays /boot/overlays
 
-# % Fix WiFi
-# % The Pi 4 version returns boardflags3=0x44200100
-# % The Pi 3 version returns boardflags3=0x48200100cd
-sudo sed -i "s:0x48200100:0x44200100:g" /lib/firmware/brcm/brcmfmac43455-sdio.txt
-
-# % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
-sudo sed -i "s/ib_iser/#ib_iser/g" /lib/modules-load.d/open-iscsi.conf
-sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /lib/modules-load.d/open-iscsi.conf
-
 # % Add udev rule so users can use vcgencmd without sudo
 sudo echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" > /etc/udev/rules.d/10-local-rpi.rules
 
-# % Fix update-initramfs mdadm.conf warning
-sudo grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo tee -a /etc/mdadm/mdadm.conf >/dev/null;
-
-# Startup tweaks to fix bluetooth and sound issues
+# Startup tweaks to fix common issues
 sudo rm /etc/rc.local
 sudo touch /etc/rc.local
-cat << \EOF | sudo tee /etc/rc.local
+cat << \EOF | sudo tee /etc/rc.local >/dev/null
 #!/bin/bash
 #
 # rc.local
@@ -191,11 +179,13 @@ if [ -n "`which pulseaudio`" ]; then
   GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0")
   if [ -z "$GrepCheck" ]; then
     sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
+    systemctl restart systemd-modules-load
   else
     GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0 tsched=0")
     if [ ! -z "$GrepCheck" ]; then
         sed -i 's/tsched=0//g' /etc/pulse/default.pa
         sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
+        systemctl restart systemd-modules-load
     fi
   fi
 
@@ -256,43 +246,74 @@ EOF2
 fi
 
 # Remove triggerhappy bugged socket that causes problems for udev on Pis
-sudo rm -f /lib/systemd/system/triggerhappy.socket
-
-exit 0
-EOF
-sudo chmod +x /etc/rc.local
+if [ -f /lib/systemd/system/triggerhappy.socket ]; then
+  sudo rm -rf /lib/systemd/system/triggerhappy.socket
+  systemctl daemon-reload
+fi
 
 # Fix netplan
 GrepCheck=$(cat /etc/netplan/50-cloud-init.yaml | grep "optional: true")
 if [ -z "$GrepCheck" ]; then
-    sudo rm -f /etc/netplan/50-cloud-init.yaml
-    sudo touch /etc/netplan/50-cloud-init.yaml
-    cat << EOF | sudo tee /etc/netplan/50-cloud-init.yaml
-    network:
-        ethernets:
-            eth0:
-                dhcp4: true
-                optional: true
-        version: 2
-EOF
-    sudo netplan generate 
-    sudo netplan --debug apply
+  rm -rf /etc/netplan/50-cloud-init.yaml
+  touch /etc/netplan/50-cloud-init.yaml
+  cat << EOF2 | tee /etc/netplan/50-cloud-init.yaml >/dev/null
+network:
+    ethernets:
+        eth0:
+            dhcp4: true
+            optional: true
+    version: 2
+EOF2
+  netplan generate 
+  netplan --debug apply
 fi
 
 # Add proposed apt archive
 GrepCheck=$(cat /etc/apt/sources.list | grep "ubuntu-ports bionic-proposed")
 if [ -z "$GrepCheck" ]; then
-    cat << EOF | sudo tee -a /etc/apt/sources.list
+    cat << EOF2 | tee -a /etc/apt/sources.list >/dev/null
 deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed restricted main multiverse universe
-EOF
-fi
+EOF2
 
-sudo touch /etc/apt/preferences.d/proposed-updates 
-cat << EOF | sudo tee /etc/apt/preferences.d/proposed-updates
+touch /etc/apt/preferences.d/proposed-updates 
+cat << EOF2 | tee /etc/apt/preferences.d/proposed-updates >/dev/null
 Package: *
 Pin: release a=bionic-proposed
 Pin-Priority: 400
+EOF2
+fi
+
+# Fix Cannot access /dev/virtio-ports/com.redhat.spice.0
+if [ -f "/usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop" ]; then
+  GrepCheck=$(cat /usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop | grep "X-GNOME-Autostart-enabled=false")
+  if [ -z "$GrepCheck" ]; then
+    echo 'X-GNOME-Autostart-enabled=false' | tee -a /usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop >/dev/null
+    echo 'X-GNOME-Autostart-enabled=false' | tee -a /etc/xdg/autostart/spice-vdagent.desktop >/dev/null
+    systemctl stop spice-vdagentd
+    systemctl disable spice-vdagentd
+    systemctl daemon-reload
+  fi
+fi
+
+# Fix WiFi
+sed -i "s:0x48200100:0x44200100:g" /lib/firmware/brcm/brcmfmac43455-sdio.txt
+
+# % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
+if [ -f "/lib/modules-load.d/open-iscsi.conf" ]; then
+  GrepCheck=$(cat /etc/apt/sources.list | grep "#ib_iser")
+  if [ -z "$GrepCheck" ]; then
+    sed -i "s/ib_iser/#ib_iser/g" /lib/modules-load.d/open-iscsi.conf
+    sed -i "s/iscsi_tcp/#iscsi_tcp/g" /lib/modules-load.d/open-iscsi.conf
+    systemctl restart systemd-modules-load
+  fi
+fi
+
+# Fix update-initramfs mdadm.conf warning
+grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | tee -a /etc/mdadm/mdadm.conf >/dev/null;
+
+exit 0
 EOF
+sudo chmod +x /etc/rc.local
 
 echo "Update completed!"
 echo "Note: it is recommended to periodically clean out the old kernel source from /usr/src, it's quite large!"

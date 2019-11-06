@@ -158,12 +158,12 @@ function UnmountIMG {
 
 function CompactIMG {
   echo "Compacting IMG file ${1}"
-  sudo rm -f "${1}.2"
+  sudo rm -rf "${1}.2"
   sudo virt-sparsify "${1}" "${1}.2"
   sync; sync
   sleep "$SLEEP_SHORT"
   
-  sudo rm -f "${1}"
+  sudo rm -rf "${1}"
   mv "${1}.2" "${1}"
   sync; sync
   sleep "$SLEEP_SHORT"
@@ -173,9 +173,9 @@ function BeforeCleanIMG {
   echo "Cleaning IMG file (before)"
 
   # % Remove flash-kernel hooks to prevent firmware updater from overriding our custom firmware
-  sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
-  sudo rm -f /mnt/etc/kernel/postrm.d/zz-flash-kernel
-  sudo rm -f /mnt/etc/initramfs/post-update.d/flash-kernel
+  sudo rm -rf /mnt/etc/kernel/postinst.d/zz-flash-kernel
+  sudo rm -rf /mnt/etc/kernel/postrm.d/zz-flash-kernel
+  sudo rm -rf /mnt/etc/initramfs/post-update.d/flash-kernel
 
   # Copy resolv.conf for chroot
   sudo mkdir -p /mnt/run/systemd/resolve
@@ -208,11 +208,10 @@ EOF
   sudo rm -rf /mnt/var/lib/apt/lists/ports* /mnt/var/lib/apt/lists/*InRelease /mnt/var/lib/apt/lists/*-en /mnt/var/lib/apt/lists/*Packages
 
   # % Remove old configuration files that we are replacing with our new ones
-  sudo rm -f /mnt/etc/rc.local
-  sudo rm -f /mnt/etc/fstab
-  #sudo rm -f /mnt/etc/resolv.conf
-  sudo rm -f /mnt/etc/default/crda
-  sudo rm -f /mnt/etc/hosts
+  sudo rm -rf /mnt/etc/rc.local
+  sudo rm -rf /mnt/etc/fstab
+  sudo rm -rf /mnt/etc/default/crda
+  sudo rm -rf /mnt/etc/hosts
 
   # Clear Python cache
   sudo find /mnt -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
@@ -288,9 +287,9 @@ function SetGitTimestamps {
 
 function UpdateIMG {
   # % Remove flash-kernel hooks to prevent update failure for "Unsupported Platform"
-  sudo rm -f /mnt/etc/kernel/postinst.d/zz-flash-kernel
-  sudo rm -f /mnt/etc/kernel/postrm.d/zz-flash-kernel
-  sudo rm -f /mnt/etc/initramfs/post-update.d/flash-kernel
+  sudo rm -rf /mnt/etc/kernel/postinst.d/zz-flash-kernel
+  sudo rm -rf /mnt/etc/kernel/postrm.d/zz-flash-kernel
+  sudo rm -rf /mnt/etc/initramfs/post-update.d/flash-kernel
 
   # Copy resolv.conf for chroot
   sudo mkdir -p /mnt/run/systemd/resolve
@@ -321,7 +320,7 @@ if [ ! -d "/opt/cross-pi-gcc-9.2.0-64" ]; then
 
   curl --location "https://sourceforge.net/projects/raspberry-pi-cross-compilers/files/latest/download" --output "cross-pi-gcc-9.2.0-64.tar.gz"
   tar -xf "cross-pi-gcc-9.2.0-64.tar.gz"
-  rm -f "cross-pi-gcc-9.2.0-64.tar.gz"
+  rm -rf "cross-pi-gcc-9.2.0-64.tar.gz"
   sudo mv cross-pi-gcc-9.2.0-64 /opt
 fi
 
@@ -374,12 +373,12 @@ if [ ! -f "$UBUNTU_IMG" ]; then
   UpdateIMG
   sudo rm -rf ~/firmware-ubuntu-1910
   sudo mkdir ~/firmware-ubuntu-1910
-  sudo cp -arf /mnt/lib/firmware/* ~/firmware-ubuntu-1910
+  sudo cp -raf /mnt/lib/firmware/* ~/firmware-ubuntu-1910
   sudo chown -R "$USER" ~/firmware-ubuntu-1910
   UnmountIMG "$UBUNTU_IMG"
 fi
 
-# % Extract and compact our source image from the xz if the source image isn't present
+# % Extract and compact our Raspbian image if not present
 if [ ! -f "$RASPBIAN_IMG" ]; then
   echo "Extracting Raspbian source image ..."
   unzip $RASPBIAN_IMGZIP
@@ -388,7 +387,7 @@ if [ ! -f "$RASPBIAN_IMG" ]; then
   UpdateIMG
   sudo rm -rf ~/firmware-raspbian
   sudo mkdir ~/firmware-raspbian
-  sudo cp -arf /mnt/lib/firmware/* ~/firmware-raspbian
+  sudo cp -raf /mnt/lib/firmware/* ~/firmware-raspbian
   sudo chown -R "$USER" ~/firmware-raspbian
   UnmountIMG "$RASPBIAN_IMG"
 fi
@@ -400,25 +399,31 @@ if [ ! -f "$SOURCE_IMG" ]; then
   xzcat --threads=0 "$SOURCE_IMGXZ" > "$SOURCE_IMG"
   MountIMG "$SOURCE_IMG"
   MountIMGPartitions "${MOUNT_IMG}"
+  sudo rm -rf ~/firmware-ubuntu-1804
+  sudo mkdir ~/firmware-ubuntu-1804
+  sudo cp -raf /mnt/lib/firmware/* ~/firmware-ubuntu-1804
+  sudo chown -R "$USER" ~/firmware-ubuntu-1804
   BeforeCleanIMG
+  UpdateIMG
   UnmountIMG "$SOURCE_IMG"
   CompactIMG "$SOURCE_IMG"
 fi
 
 # % Create target image from Ubuntu 18.04.3 image
 echo "Creating target image ..."
-if [ ! -f "$TARGET_IMG" ]; then
-  sudo rm -f "$TARGET_IMG"
+if [ -f "$TARGET_IMG" ]; then
+  sudo rm -rf "$TARGET_IMG"
 fi
 cp -vf "$SOURCE_IMG" "$TARGET_IMG"
 # % Expands the target image by approximately 300MB to help us not run out of space and encounter errors
 echo "Expanding target image free space ..."
-truncate -s +809715200 "$TARGET_IMG"
+truncate -s +909715200 "$TARGET_IMG"
 sync; sync
 
 # GET USERLAND
 cd ~
 if [ ! -d "userland" ]; then
+  echo "Building userland ..."
   git clone https://github.com/raspberrypi/userland userland --single-branch --branch=master --depth=1
   cd userland
   PATH=/opt/cross-pi-gcc-9.2.0-64/bin:$PATH LD_LIBRARY_PATH=/opt/cross-pi-gcc-9.2.0-64/lib:$LD_LIBRARY_PATH ./buildme --aarch64
@@ -432,6 +437,7 @@ fi
 
 # GET FIRMWARE NON-FREE
 cd ~
+echo "Building firmware-nonfree ..."
 if [ ! -d "firmware-nonfree" ]; then
   git clone https://github.com/RPi-Distro/firmware-nonfree firmware-nonfree --single-branch --branch=master
   cd firmware-nonfree
@@ -446,6 +452,7 @@ fi
 
 # GET FIRMWARE
 cd ~
+echo "Building rpi-firmware ..."
 if [ ! -d "firmware" ]; then
   git clone https://github.com/raspberrypi/firmware firmware --single-branch --branch=master --depth=1
   cd firmware
@@ -477,6 +484,7 @@ sudo rm -rf ~/firmware-build/*-raspi2
 
 # BUILD KERNEL
 cd ~
+echo "Building kernel ..."
 if [ ! -d "rpi-linux" ]; then
   # Check out the 4.19.y kernel branch -- if building and future versions are available you can update which branch is checked out here
   git clone https://github.com/raspberrypi/linux.git rpi-linux --single-branch --branch rpi-4.19.y --depth 1
@@ -485,7 +493,7 @@ if [ ! -d "rpi-linux" ]; then
 
   # Make copy of source code if not present
   if [ ! -d "~/rpi-source" ]; then
-    mkdir ~/rpi-source
+    mkdir -p ~/rpi-source
     cp -rf ~/rpi-linux/* ~/rpi-source
     rm ~/rpi-source/.git ~/rpi-source/.github
   fi
@@ -497,14 +505,14 @@ if [ ! -d "rpi-linux" ]; then
   wget https://raw.githubusercontent.com/sakaki-/bcm2711-kernel-bis/master/conform_config.sh
   chmod +x conform_config.sh
   ./conform_config.sh
-  rm -f conform_config.sh
+  rm -rf conform_config.sh
   wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/conform_config_jamesachambers.sh
   chmod +x conform_config_jamesachambers.sh
   ./conform_config_jamesachambers.sh
-  rm -f conform_config_jamesachambers.sh
+  rm -rf conform_config_jamesachambers.sh
 
   # % This pulls the latest config from the repository -- if building yourself/customizing comment out
-  #rm -f .config
+  #rm -rf .config
   #wget https://raw.githubusercontent.com/TheRemote/Ubuntu-Server-raspi4-unofficial/master/.config
 
   # % Run prepare to register all our .config changes
@@ -719,51 +727,12 @@ cd ~
 
 # % Add udev rule so users can use vcgencmd without sudo
 sudo touch /mnt/etc/udev/rules.d/10-local-rpi.rules
-echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" | sudo tee /mnt/etc/udev/rules.d/10-local-rpi.rules
-
-# % Fix WiFi
-# % The Pi 4 version returns boardflags3=0x44200100
-# % The Pi 3 version returns boardflags3=0x48200100cd
-sudo sed -i "s:0x48200100:0x44200100:g" /mnt/lib/firmware/brcm/brcmfmac43455-sdio.txt
-
-# % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
-sudo sed -i "s/ib_iser/#ib_iser/g" /mnt/lib/modules-load.d/open-iscsi.conf
-sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /mnt/lib/modules-load.d/open-iscsi.conf
-
-# % Fix update-initramfs mdadm.conf warning
-sudo grep "ARRAY devices" /mnt/etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo tee -a /mnt/etc/mdadm/mdadm.conf >/dev/null;
+echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" | sudo tee /mnt/etc/udev/rules.d/10-local-rpi.rules >/dev/null
 
 # % Copy resolv.conf from local host so we have networking in our chroot
 sudo mkdir -p /mnt/run/systemd/resolve
 sudo touch /mnt/run/systemd/resolve/stub-resolv.conf
 sudo cat /run/systemd/resolve/stub-resolv.conf | sudo tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
-
-# Add proposed apt archive
-GrepCheck=$(cat /mnt/etc/apt/sources.list | grep "ubuntu-ports bionic-proposed")
-if [ -z "$GrepCheck" ]; then
-    cat << EOF | sudo tee -a /mnt/etc/apt/sources.list
-deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed restricted main multiverse universe
-EOF
-fi
-
-sudo touch /mnt/etc/apt/preferences.d/proposed-updates 
-cat << EOF | sudo tee /mnt/etc/apt/preferences.d/proposed-updates 
-Package: *
-Pin: release a=bionic-proposed
-Pin-Priority: 400
-EOF
-
-# Fix netplan
-sudo rm -f /mnt/etc/netplan/50-cloud-init.yaml
-sudo touch /mnt/etc/netplan/50-cloud-init.yaml
-cat << EOF | sudo tee /mnt/etc/netplan/50-cloud-init.yaml
-network:
-    ethernets:
-        eth0:
-            dhcp4: true
-            optional: true
-    version: 2
-EOF
 
 # % Enter Ubuntu image chroot
 echo "Entering chroot of IMG file"
@@ -779,10 +748,10 @@ ln -s /boot/firmware/overlays /boot/overlays
 
 # % Create kernel and component symlinks
 cd /boot
-sudo rm -f vmlinux
-sudo rm -f System.map
-sudo rm -f Module.symvers
-sudo rm -f config
+sudo rm -rf vmlinux
+sudo rm -rf System.map
+sudo rm -rf Module.symvers
+sudo rm -rf config
 sudo ln -s initrd.img-"${KERNEL_VERSION}" initrd.img
 sudo ln -s vmlinux-"${KERNEL_VERSION}" vmlinux
 sudo ln -s System.map-"${KERNEL_VERSION}" System.map
@@ -800,10 +769,6 @@ sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
 # % Install curl and unzip utilities
 # % Install missing libblockdev-mdraid
 apt update && apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
-
-# % Apply modified netplan settings
-sudo netplan generate 
-sudo netplan --debug apply
 
 # % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
@@ -828,12 +793,12 @@ echo "The chroot container has exited"
 cp -rf /mnt/usr/src/"${KERNEL_VERSION}"/* ~/rpi-source
 
 # % Clean up after ourselves and remove qemu static binary
-sudo rm -f /mnt/usr/bin/qemu-aarch64-static
+sudo rm -rf /mnt/usr/bin/qemu-aarch64-static
 
 # % Set regulatory crda to enable 5 Ghz wireless
 sudo mkdir -p /mnt/etc/default
 sudo touch /mnt/etc/default/crda
-cat << EOF | sudo tee /mnt/etc/default/crda
+cat << EOF | sudo tee /mnt/etc/default/crda >/dev/null
 # Set REGDOMAIN to a ISO/IEC 3166-1 alpha2 country code so that iw(8) may set
 # the initial regulatory domain setting for IEEE 802.11 devices which operate
 # on this system.
@@ -849,7 +814,7 @@ EOF
 
 # % Set loopback address in hosts to prevent slow bootup
 sudo touch /mnt/etc/hosts
-cat << EOF | sudo tee /mnt/etc/hosts
+cat << EOF | sudo tee /mnt/etc/hosts >/dev/null
 127.0.0.1 localhost
 127.0.1.1 ubuntu
 
@@ -864,14 +829,14 @@ EOF
 
 # % Update fstab to allow fsck to run on rootfs
 sudo touch /mnt/etc/fstab
-cat << EOF | sudo tee /mnt/etc/fstab
+cat << EOF | sudo tee /mnt/etc/fstab >/dev/null
 LABEL=writable   /   ext4   defaults   0    1
 LABEL=system-boot       /boot/firmware  vfat    defaults        0       1
 EOF
 
-# % Startup tweaks to fix bluetooth and sound issues
+# % Startup tweaks to fix common issues
 sudo touch /mnt/etc/rc.local
-cat << \EOF | sudo tee /mnt/etc/rc.local
+cat << \EOF | sudo tee /mnt/etc/rc.local >/dev/null
 #!/bin/bash
 #
 # rc.local
@@ -882,18 +847,19 @@ if [ -n "`which pulseaudio`" ]; then
   GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0")
   if [ -z "$GrepCheck" ]; then
     sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
+    systemctl restart systemd-modules-load
   else
     GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0 tsched=0")
     if [ ! -z "$GrepCheck" ]; then
         sed -i 's/tsched=0//g' /etc/pulse/default.pa
         sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
+        systemctl restart systemd-modules-load
     fi
   fi
 
   GrepCheck=$(cat /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf | grep "device-strings = fake")
   if [ -z "$GrepCheck" ]; then
     sed -i '/^\[Mapping analog-mono\]/,+1s/device-strings = hw\:\%f.*/device-strings = fake\:\%f/' /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf
-    sed -i '/^\[Mapping multichannel-output\]/,+1s/device-strings = hw\:\%f.*/device-strings = fake\:\%f/' /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf
     pulseaudio -k
     pulseaudio --start
   fi
@@ -948,7 +914,70 @@ EOF2
 fi
 
 # Remove triggerhappy bugged socket that causes problems for udev on Pis
-sudo rm -f /lib/systemd/system/triggerhappy.socket
+if [ -f /lib/systemd/system/triggerhappy.socket ]; then
+  sudo rm -rf /lib/systemd/system/triggerhappy.socket
+  systemctl daemon-reload
+fi
+
+# Fix netplan
+GrepCheck=$(cat /etc/netplan/50-cloud-init.yaml | grep "optional: true")
+if [ -z "$GrepCheck" ]; then
+  rm -rf /etc/netplan/50-cloud-init.yaml
+  touch /etc/netplan/50-cloud-init.yaml
+  cat << EOF2 | tee /etc/netplan/50-cloud-init.yaml >/dev/null
+network:
+    ethernets:
+        eth0:
+            dhcp4: true
+            optional: true
+    version: 2
+EOF2
+  netplan generate 
+  netplan --debug apply
+fi
+
+# Add proposed apt archive
+GrepCheck=$(cat /etc/apt/sources.list | grep "ubuntu-ports bionic-proposed")
+if [ -z "$GrepCheck" ]; then
+    cat << EOF2 | tee -a /etc/apt/sources.list >/dev/null
+deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed restricted main multiverse universe
+EOF2
+
+touch /etc/apt/preferences.d/proposed-updates 
+cat << EOF2 | tee /etc/apt/preferences.d/proposed-updates >/dev/null
+Package: *
+Pin: release a=bionic-proposed
+Pin-Priority: 400
+EOF2
+fi
+
+# Fix Cannot access /dev/virtio-ports/com.redhat.spice.0
+if [ -f "/usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop" ]; then
+  GrepCheck=$(cat /usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop | grep "X-GNOME-Autostart-enabled=false")
+  if [ -z "$GrepCheck" ]; then
+    echo 'X-GNOME-Autostart-enabled=false' | tee -a /usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop >/dev/null
+    echo 'X-GNOME-Autostart-enabled=false' | tee -a /etc/xdg/autostart/spice-vdagent.desktop >/dev/null
+    systemctl stop spice-vdagentd
+    systemctl disable spice-vdagentd
+    systemctl daemon-reload
+  fi
+fi
+
+# Fix WiFi
+sed -i "s:0x48200100:0x44200100:g" /lib/firmware/brcm/brcmfmac43455-sdio.txt
+
+# % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
+if [ -f "/lib/modules-load.d/open-iscsi.conf" ]; then
+  GrepCheck=$(cat /etc/apt/sources.list | grep "#ib_iser")
+  if [ -z "$GrepCheck" ]; then
+    sed -i "s/ib_iser/#ib_iser/g" /lib/modules-load.d/open-iscsi.conf
+    sed -i "s/iscsi_tcp/#iscsi_tcp/g" /lib/modules-load.d/open-iscsi.conf
+    systemctl restart systemd-modules-load
+  fi
+fi
+
+# Fix update-initramfs mdadm.conf warning
+grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | tee -a /etc/mdadm/mdadm.conf >/dev/null;
 
 exit 0
 EOF
@@ -968,17 +997,43 @@ sudo fsck.fat -av "/dev/mapper/${MOUNT_IMG}p1"
 UnmountIMG "$TARGET_IMG"
 CompactIMG "$TARGET_IMG"
 
+# Clean firmware
+# % Remove files that haven't changed from the base 18.04.3 files
+cd ~/firmware-ubuntu-1804
+# Remove duplicate files that are already in 1804 and haven't changed
+for f in $(find -L . -type f -print); do
+  if [ -f "$f" ] && [ ! -L "$f" ]; then
+    File1Hash=$(sha1sum "$f" | cut -d" " -f1 | xargs)
+    if [ -f "../firmware-build/$f" ]; then
+      File2Hash=$(sha1sum "../firmware-build/$f" | cut -d" " -f1 | xargs)
+      if [ "$File1Hash" == "$File2Hash" ]; then
+        rm -rf "../firmware-build/$f"
+      fi
+    fi
+  fi
+done
+cd ~/firmware-build
+# Remove empty folders
+for f in $(find -L . -type d -empty -print); do
+  if [ -d "$f" ] && [ ! -L "$f" ]; then
+    rmdir "$f"
+  fi
+done
+# Remove broken symbolic links
+find . -xtype l -delete
+cd ~
+
 # Compress img into xz file
 echo "Compressing final img.xz file ..."
 sleep "$SLEEP_SHORT"
-sudo rm -f "$TARGET_IMGXZ"
+sudo rm -rf "$TARGET_IMGXZ"
 xz -9e --force --keep --threads=0 --quiet "$TARGET_IMG"
 
 # Compress our updates used for the autoupdater
 echo "Compressing updates.tar.xz ..."
 # Prevent overwriting the updater running the updates since it's probably newer than us
-sudo rm -f ~/updates/rootfs/home/Updater.sh
-sudo rm -f ~/updates.tar.xz
+sudo rm -rf ~/updates/rootfs/home/Updater.sh
+sudo rm -rf ~/updates.tar.xz
 tar -cf - updates/ | xz -9e -c --threads=0 - > ~/updates.tar.xz
 
 echo "Build completed"
