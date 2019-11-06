@@ -100,7 +100,7 @@ set_kernel_config CONFIG_CRYPTO_CHACHA20_NEON m
 
 # Security
 set_kernel_config CONFIG_PERSISTENT_KEYRINGS y
-set_kernel_config ONFIG_BIG_KEYS y
+set_kernel_config CONFIG_BIG_KEYS y
 set_kernel_config CONFIG_TRUSTED_KEYS y
 set_kernel_config CONFIG_ENCRYPTED_KEYS y
 set_kernel_config CONFIG_SECURITY y
@@ -114,6 +114,16 @@ set_kernel_config CONFIG_SECURITY_PATH y
 set_kernel_config CONFIG_SECURITY_SELINUX y
 set_kernel_config CONFIG_SECURITY_SELINUX_BOOTPARAM y
 set_kernel_config CONFIG_SECURITY_SELINUX_DISABLE y
+set_kernel_config CONFIG_SECURITY_SELINUX_DEVELOP y
+set_kernel_config CONFIG_SECURITY_SELINUX_AVC_STATS y
+set_kernel_config CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE 0
+set_kernel_config CONFIG_SECURITY_APPARMOR y
+set_kernel_config CONFIG_SECURITY_APPARMOR_BOOTVALUE 1
+set_kernel_config CONFIG_SECURITY_APPARMOR_HASH y
+set_kernel_config CONFIG_SECURITY_APPARMOR_HASH_DEFAULT y
+set_kernel_config CONFIG_SECURITY_APPARMOR_DEBUG n
+set_kernel_config CONFIG_SECURITY_LOADPIN n
+set_kernel_config CONFIG_INTEGRITY n
 
 # Performance
 set_kernel_config CONFIG_ARM64_PMEM y
@@ -208,6 +218,11 @@ set_kernel_config CONFIG_INET_DIAG_DESTROY y
 set_kernel_config CONFIG_NF_NAT_MASQUERADE y
 set_kernel_config CONFIG_NETFILTER_SYNPROXY m
 set_kernel_config CONFIG_NFT_XFRM m
+set_kernel_config CONFIG_NF_CONNTRACK_SECMARK y
+set_kernel_config CONFIG_NETFILTER_XT_TARGET_CONNSECMARK m
+set_kernel_config CONFIG_NETFILTER_XT_TARGET_SECMARK m
+set_kernel_config CONFIG_VSOCKMON m
+set_kernel_config CONFIG_LSM_MMAP_MIN_ADDR 0
 
 # Compiler options
 set_kernel_config CONFIG_OPTIMIZE_INLINING y
