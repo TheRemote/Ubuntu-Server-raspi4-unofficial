@@ -24,7 +24,7 @@ if [ -e /etc/modules-load.d/cups-filters.conf ]; then
 fi
 
 # Install dependencies
-sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y
+sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
 
 echo "Checking for updates ..."
@@ -159,8 +159,8 @@ sudo usermod -aG adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,ne
 sudo rm -rf /var/crash/*
 
 # % Fix /lib/firmware symlink, overlays symlink
-sudo ln -s /lib/firmware /etc/firmware
-sudo ln -s /boot/firmware/overlays /boot/overlays
+if [ ! -d "/etc/firmware" ]; then sudo ln -s /lib/firmware /etc/firmware; fi
+if [ ! -d "/boot/overlays" ]; then sudo ln -s /boot/firmware/overlays /boot/overlays; fi
 
 # % Add udev rule so users can use vcgencmd without sudo
 sudo echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" > /etc/udev/rules.d/10-local-rpi.rules
@@ -178,6 +178,7 @@ cat << \EOF | sudo tee /etc/rc.local >/dev/null
 if [ -n "`which pulseaudio`" ]; then
   GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0")
   if [ -z "$GrepCheck" ]; then
+    echo "Fixing PulseAudio ..."
     sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
     systemctl restart systemd-modules-load
   else
@@ -199,6 +200,7 @@ fi
 
 # Fix cups
 if [ -e /etc/modules-load.d/cups-filters.conf ]; then
+  echo "Fixing cups ..."
   rm /etc/modules-load.d/cups-filters.conf
   systemctl restart systemd-modules-load cups
 fi
@@ -247,6 +249,7 @@ fi
 
 # Remove triggerhappy bugged socket that causes problems for udev on Pis
 if [ -f /lib/systemd/system/triggerhappy.socket ]; then
+  echo "Fixing triggerhappy ..."
   sudo rm -rf /lib/systemd/system/triggerhappy.socket
   systemctl daemon-reload
 fi
@@ -254,6 +257,7 @@ fi
 # Fix netplan
 GrepCheck=$(cat /etc/netplan/50-cloud-init.yaml | grep "optional: true")
 if [ -z "$GrepCheck" ]; then
+  echo "Fixing netplan ..."
   rm -rf /etc/netplan/50-cloud-init.yaml
   touch /etc/netplan/50-cloud-init.yaml
   cat << EOF2 | tee /etc/netplan/50-cloud-init.yaml >/dev/null
@@ -274,7 +278,6 @@ if [ -z "$GrepCheck" ]; then
     cat << EOF2 | tee -a /etc/apt/sources.list >/dev/null
 deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed restricted main multiverse universe
 EOF2
-
 touch /etc/apt/preferences.d/proposed-updates 
 cat << EOF2 | tee /etc/apt/preferences.d/proposed-updates >/dev/null
 Package: *
@@ -287,6 +290,7 @@ fi
 if [ -f "/usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop" ]; then
   GrepCheck=$(cat /usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop | grep "X-GNOME-Autostart-enabled=false")
   if [ -z "$GrepCheck" ]; then
+    echo "Fixing spice-vdagent ..."
     echo 'X-GNOME-Autostart-enabled=false' | tee -a /usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop >/dev/null
     echo 'X-GNOME-Autostart-enabled=false' | tee -a /etc/xdg/autostart/spice-vdagent.desktop >/dev/null
     systemctl stop spice-vdagentd
@@ -298,10 +302,11 @@ fi
 # Fix WiFi
 sed -i "s:0x48200100:0x44200100:g" /lib/firmware/brcm/brcmfmac43455-sdio.txt
 
-# % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
+# Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
 if [ -f "/lib/modules-load.d/open-iscsi.conf" ]; then
   GrepCheck=$(cat /etc/apt/sources.list | grep "#ib_iser")
   if [ -z "$GrepCheck" ]; then
+    echo "Fixing open-iscsi ..."
     sed -i "s/ib_iser/#ib_iser/g" /lib/modules-load.d/open-iscsi.conf
     sed -i "s/iscsi_tcp/#iscsi_tcp/g" /lib/modules-load.d/open-iscsi.conf
     systemctl restart systemd-modules-load
@@ -313,7 +318,6 @@ grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/de
 
 exit 0
 EOF
-sudo chmod +x /etc/rc.local
 
 echo "Update completed!"
 echo "Note: it is recommended to periodically clean out the old kernel source from /usr/src, it's quite large!"

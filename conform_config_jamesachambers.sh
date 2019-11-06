@@ -129,6 +129,7 @@ set_kernel_config CONFIG_SECURITY_APPARMOR n
 set_kernel_config CONFIG_INTEGRITY n
 set_kernel_config CONFIG_SECURITY_SMACK n
 set_kernel_config CONFIG_SECURITY_TOMOYO n
+set_kernel_config CONFIG_SECURITY_LOADPIN n
 
 # Performance
 set_kernel_config CONFIG_ARM64_PMEM y

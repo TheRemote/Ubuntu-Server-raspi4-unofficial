@@ -236,8 +236,12 @@ function AfterCleanIMG {
 
   # Remove any crash files generated
   sudo rm -rf /mnt/var/crash/*
-  #sudo rm -rf /mnt/var/run/*
+  sudo rm -rf /mnt/var/run/* >/dev/null
   sudo rm -rf /mnt/root/*
+
+  # Remove machine ID so all clones don't have the same one
+  sudo rm -rf /mnt/etc/machine-id
+  sudo touch /mnt/etc/machine-id
 
   sync; sync
   sleep "$SLEEP_LONG"
@@ -763,12 +767,11 @@ cd /
 sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
 
 # % Install wireless tools and bluetooth (wireless-tools, iw, rfkill, bluez)
-# % Install haveged - prevents low entropy issues from making the Pi take a long time to start up
 # % Install raspi-config dependencies (libnewt0.52 whiptail lua5.1)
 # % Install dependencies to build Pi modules (git build-essential bc bison flex libssl-dev device-tree-compiler)
 # % Install curl and unzip utilities
 # % Install missing libblockdev-mdraid
-apt update && apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
+apt update && apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
 
 # % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
@@ -846,6 +849,7 @@ cat << \EOF | sudo tee /mnt/etc/rc.local >/dev/null
 if [ -n "`which pulseaudio`" ]; then
   GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0")
   if [ -z "$GrepCheck" ]; then
+    echo "Fixing PulseAudio ..."
     sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
     systemctl restart systemd-modules-load
   else
@@ -867,6 +871,7 @@ fi
 
 # Fix cups
 if [ -e /etc/modules-load.d/cups-filters.conf ]; then
+  echo "Fixing cups ..."
   rm /etc/modules-load.d/cups-filters.conf
   systemctl restart systemd-modules-load cups
 fi
@@ -915,6 +920,7 @@ fi
 
 # Remove triggerhappy bugged socket that causes problems for udev on Pis
 if [ -f /lib/systemd/system/triggerhappy.socket ]; then
+  echo "Fixing triggerhappy ..."
   sudo rm -rf /lib/systemd/system/triggerhappy.socket
   systemctl daemon-reload
 fi
@@ -922,6 +928,7 @@ fi
 # Fix netplan
 GrepCheck=$(cat /etc/netplan/50-cloud-init.yaml | grep "optional: true")
 if [ -z "$GrepCheck" ]; then
+  echo "Fixing netplan ..."
   rm -rf /etc/netplan/50-cloud-init.yaml
   touch /etc/netplan/50-cloud-init.yaml
   cat << EOF2 | tee /etc/netplan/50-cloud-init.yaml >/dev/null
@@ -942,7 +949,6 @@ if [ -z "$GrepCheck" ]; then
     cat << EOF2 | tee -a /etc/apt/sources.list >/dev/null
 deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed restricted main multiverse universe
 EOF2
-
 touch /etc/apt/preferences.d/proposed-updates 
 cat << EOF2 | tee /etc/apt/preferences.d/proposed-updates >/dev/null
 Package: *
@@ -955,6 +961,7 @@ fi
 if [ -f "/usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop" ]; then
   GrepCheck=$(cat /usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop | grep "X-GNOME-Autostart-enabled=false")
   if [ -z "$GrepCheck" ]; then
+    echo "Fixing spice-vdagent ..."
     echo 'X-GNOME-Autostart-enabled=false' | tee -a /usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop >/dev/null
     echo 'X-GNOME-Autostart-enabled=false' | tee -a /etc/xdg/autostart/spice-vdagent.desktop >/dev/null
     systemctl stop spice-vdagentd
@@ -966,10 +973,11 @@ fi
 # Fix WiFi
 sed -i "s:0x48200100:0x44200100:g" /lib/firmware/brcm/brcmfmac43455-sdio.txt
 
-# % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
+# Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
 if [ -f "/lib/modules-load.d/open-iscsi.conf" ]; then
   GrepCheck=$(cat /etc/apt/sources.list | grep "#ib_iser")
   if [ -z "$GrepCheck" ]; then
+    echo "Fixing open-iscsi ..."
     sed -i "s/ib_iser/#ib_iser/g" /lib/modules-load.d/open-iscsi.conf
     sed -i "s/iscsi_tcp/#iscsi_tcp/g" /lib/modules-load.d/open-iscsi.conf
     systemctl restart systemd-modules-load
