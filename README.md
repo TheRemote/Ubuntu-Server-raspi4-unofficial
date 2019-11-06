@@ -56,6 +56,7 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <li>Fixed PulseAudio only playing sound in mono, stereo now works!</li>
 <li>Added kernel flags to optimize speed/clean up warnings/fix crashes</li>
 <li>Moved most fixes to /etc/rc.local so they are applied after installing a *ubuntu-desktop package without waiting for the next update</li>
+<li>Removed machine-id from the base image so that cloned images wouldn't all have a duplicate machine-id</li>
 <li>Fixed audit service error</li>
 <li>Fixed "spice-vdagent[2107]: Cannot access vdagent virtio channel /dev/virtio-ports/com.redhat.spice.0" error</li>
 <li>Fixed triggerhappy crash related to /lib/systemd/system/triggerhappy.socket being wrong type</li>
