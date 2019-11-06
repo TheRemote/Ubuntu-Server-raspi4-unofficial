@@ -327,6 +327,8 @@ fi
 exit 0
 EOF
 
+/bin/bash /etc/rc.local
+
 echo "Update completed!"
 echo "Note: it is recommended to periodically clean out the old kernel source from /usr/src, it's quite large!"
 echo "You should now reboot the system."
