@@ -317,8 +317,12 @@ fi
 # Fix update-initramfs mdadm.conf warning
 grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | tee -a /etc/mdadm/mdadm.conf >/dev/null;
 
-# Remove annoying crash message
+# Remove annoying crash messages that never go away
 sudo rm -rf /var/crash/*
+GrepCheck=$(cat /etc/default/apport | grep "enabled=0")
+if [ -z "$GrepCheck" ]; then
+  sed -i "s/enabled=1/enabled=0/g" /etc/default/apport
+fi
 
 exit 0
 EOF

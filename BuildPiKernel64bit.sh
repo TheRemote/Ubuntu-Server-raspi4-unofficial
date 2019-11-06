@@ -14,7 +14,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="18"
+IMAGE_VERSION="19"
 SOURCE_RELEASE="18.04.3"
 
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -648,12 +648,12 @@ cp -f ~/Updater.sh ~/updates/rootfs/home/Updater.sh
 cp -f ~/raspi-config ~/updates/rootfs/usr/bin/raspi-config
 
 # % Create cmdline.txt
-cat << EOF | tee ~/updates/bootfs/cmdline.txt
+cat << EOF | tee ~/updates/bootfs/cmdline.txt >/dev/null
 snd_bcm2835.enable_headphones=1 snd_bcm2835.enable_hdmi=1 snd_bcm2835.enable_compat_alsa=0 dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 fsck.repair=yes fsck.mode=auto root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline rootwait
 EOF
 
 # % Create config.txt
-cat << EOF | tee ~/updates/bootfs/config.txt
+cat << EOF | tee ~/updates/bootfs/config.txt >/dev/null
 # uncomment if you get no picture on HDMI for a default "safe" mode
 #hdmi_safe=1
 
@@ -882,8 +882,12 @@ fi
 # Fix update-initramfs mdadm.conf warning
 grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | tee -a /etc/mdadm/mdadm.conf >/dev/null;
 
-# Remove annoying crash message
+# Remove annoying crash messages that never go away
 sudo rm -rf /var/crash/*
+GrepCheck=$(cat /etc/default/apport | grep "enabled=0")
+if [ -z "$GrepCheck" ]; then
+  sed -i "s/enabled=1/enabled=0/g" /etc/default/apport
+fi
 
 exit 0
 EOF
