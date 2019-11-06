@@ -51,6 +51,15 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
+<strong>November 6th - v19 Release</strong><br>
+<ul>
+<li>Fixed PulseAudio only playing sound in mono, stereo now works!</li>
+<li>Added kernel flags to optimize speed/clean up warnings/fix crashes</li>
+<li>Moved most fixes to /etc/rc.local so they are applied after installing a *ubuntu-desktop package without waiting for the next update</li>
+<li>Fixed audit service error</li>
+<li>Fixed "spice-vdagent[2107]: Cannot access vdagent virtio channel /dev/virtio-ports/com.redhat.spice.0" error</li>
+<li>Fixed triggerhappy crash related to /lib/systemd/system/triggerhappy.socket being wrong type</li>
+</ul>
 <strong>November 3rd - v18 Release</strong><br>
 <ul>
 <li>Update to kernel 4.19.81</li>

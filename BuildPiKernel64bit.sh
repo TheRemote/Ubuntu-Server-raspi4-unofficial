@@ -187,7 +187,7 @@ function BeforeCleanIMG {
   
   # % Remove incompatible RPI firmware / headers / modules
   sudo chroot /mnt /bin/bash << EOF
-  apt purge linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2 ureadahead libnih1 whoopsie -y
+  apt purge linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2 ureadahead libnih1 -y
   apt update && apt dist-upgrade -y
 EOF
 
@@ -218,7 +218,6 @@ EOF
 
   # Remove any crash files generated
   sudo rm -rf /mnt/var/crash/*
-  #sudo rm -rf /mnt/var/run/*
   sudo rm -rf /mnt/root/*
 
   sync; sync
@@ -236,7 +235,6 @@ function AfterCleanIMG {
 
   # Remove any crash files generated
   sudo rm -rf /mnt/var/crash/*
-  sudo rm -rf /mnt/var/run/* >/dev/null
   sudo rm -rf /mnt/root/*
 
   # Remove machine ID so all clones don't have the same one
@@ -733,109 +731,6 @@ cd ~
 sudo touch /mnt/etc/udev/rules.d/10-local-rpi.rules
 echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" | sudo tee /mnt/etc/udev/rules.d/10-local-rpi.rules >/dev/null
 
-# % Copy resolv.conf from local host so we have networking in our chroot
-sudo mkdir -p /mnt/run/systemd/resolve
-sudo touch /mnt/run/systemd/resolve/stub-resolv.conf
-sudo cat /run/systemd/resolve/stub-resolv.conf | sudo tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
-
-# % Enter Ubuntu image chroot
-echo "Entering chroot of IMG file"
-sudo chroot /mnt /bin/bash << EOF
-
-# % Pull kernel version from /lib/modules folder
-export KERNEL_VERSION="$(ls /lib/modules)"
-
-# % Fix /lib/firmware permission and symlink (fixes Bluetooth and firmware issues)
-chown -R root:root /lib
-ln -s /lib/firmware /etc/firmware
-ln -s /boot/firmware/overlays /boot/overlays
-
-# % Create kernel and component symlinks
-cd /boot
-sudo rm -rf vmlinux
-sudo rm -rf System.map
-sudo rm -rf Module.symvers
-sudo rm -rf config
-sudo ln -s initrd.img-"${KERNEL_VERSION}" initrd.img
-sudo ln -s vmlinux-"${KERNEL_VERSION}" vmlinux
-sudo ln -s System.map-"${KERNEL_VERSION}" System.map
-sudo ln -s Module.symvers-"${KERNEL_VERSION}" Module.symvers
-sudo ln -s config-"${KERNEL_VERSION}" config
-cd /
-
-# % Add updated mesa repository for video driver support
-sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
-
-# % Install wireless tools and bluetooth (wireless-tools, iw, rfkill, bluez)
-# % Install raspi-config dependencies (libnewt0.52 whiptail lua5.1)
-# % Install dependencies to build Pi modules (git build-essential bc bison flex libssl-dev device-tree-compiler)
-# % Install curl and unzip utilities
-# % Install missing libblockdev-mdraid
-apt update && apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
-
-# % Clean up after ourselves and clean out package cache to keep the image small
-apt autoremove -y && apt clean && apt autoclean
-
-# % Prepare source code to be able to build modules
-cd /usr/src/"${KERNEL_VERSION}"
-make -j4 bcm2711_defconfig
-cp -f /boot/config .config
-make -j4 prepare
-make -j4 modules_prepare
-
-# % Create kernel header/source symlink
-sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/build 
-sudo rm -rf /lib/modules/"${KERNEL_VERSION}"/source
-sudo ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/build
-sudo ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
-
-EOF
-echo "The chroot container has exited"
-
-# % Grab our updated built source code for updates.tar.gz
-cp -rf /mnt/usr/src/"${KERNEL_VERSION}"/* ~/rpi-source
-
-# % Clean up after ourselves and remove qemu static binary
-sudo rm -rf /mnt/usr/bin/qemu-aarch64-static
-
-# % Set regulatory crda to enable 5 Ghz wireless
-sudo mkdir -p /mnt/etc/default
-sudo touch /mnt/etc/default/crda
-cat << EOF | sudo tee /mnt/etc/default/crda >/dev/null
-# Set REGDOMAIN to a ISO/IEC 3166-1 alpha2 country code so that iw(8) may set
-# the initial regulatory domain setting for IEEE 802.11 devices which operate
-# on this system.
-#
-# Governments assert the right to regulate usage of radio spectrum within
-# their respective territories so make sure you select a ISO/IEC 3166-1 alpha2
-# country code suitable for your location or you may infringe on local
-# legislature. See /usr/share/zoneinfo/zone.tab for a table of timezone
-# descriptions containing ISO/IEC 3166-1 alpha2 country codes.
-
-REGDOMAIN=US
-EOF
-
-# % Set loopback address in hosts to prevent slow bootup
-sudo touch /mnt/etc/hosts
-cat << EOF | sudo tee /mnt/etc/hosts >/dev/null
-127.0.0.1 localhost
-127.0.1.1 ubuntu
-
-# The following lines are desirable for IPv6 capable hosts
-::1 ip6-localhost ip6-loopback
-fe00::0 ip6-localnet
-ff00::0 ip6-mcastprefix
-ff02::1 ip6-allnodes
-ff02::2 ip6-allrouters
-ff02::3 ip6-allhosts
-EOF
-
-# % Update fstab to allow fsck to run on rootfs
-sudo touch /mnt/etc/fstab
-cat << EOF | sudo tee /mnt/etc/fstab >/dev/null
-LABEL=writable   /   ext4   defaults   0    1
-LABEL=system-boot       /boot/firmware  vfat    defaults        0       1
-EOF
 
 # % Startup tweaks to fix common issues
 sudo touch /mnt/etc/rc.local
@@ -987,9 +882,118 @@ fi
 # Fix update-initramfs mdadm.conf warning
 grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | tee -a /etc/mdadm/mdadm.conf >/dev/null;
 
+# Remove annoying crash message
+sudo rm -rf /var/crash/*
+
 exit 0
 EOF
 sudo chmod +x /mnt/etc/rc.local
+
+# % Copy resolv.conf from local host so we have networking in our chroot
+sudo mkdir -p /mnt/run/systemd/resolve
+sudo touch /mnt/run/systemd/resolve/stub-resolv.conf
+sudo cat /run/systemd/resolve/stub-resolv.conf | sudo tee /mnt/run/systemd/resolve/stub-resolv.conf >/dev/null;
+
+# % Enter Ubuntu image chroot
+echo "Entering chroot of IMG file"
+sudo chroot /mnt /bin/bash << EOF
+
+# % Pull kernel version from /lib/modules folder
+export KERNEL_VERSION="$(ls /lib/modules)"
+
+# % Fix /lib/firmware permission and symlink (fixes Bluetooth and firmware issues)
+chown -R root:root /lib
+ln -s /lib/firmware /etc/firmware
+ln -s /boot/firmware/overlays /boot/overlays
+
+# % Create kernel and component symlinks
+cd /boot
+rm -rf vmlinux
+rm -rf System.map
+rm -rf Module.symvers
+rm -rf config
+ln -s initrd.img-"${KERNEL_VERSION}" initrd.img
+ln -s vmlinux-"${KERNEL_VERSION}" vmlinux
+ln -s System.map-"${KERNEL_VERSION}" System.map
+ln -s Module.symvers-"${KERNEL_VERSION}" Module.symvers
+ln -s config-"${KERNEL_VERSION}" config
+cd /
+
+# % Add updated mesa repository for video driver support
+add-apt-repository ppa:oibaf/graphics-drivers -yn
+
+# % Install wireless tools and bluetooth (wireless-tools, iw, rfkill, bluez)
+# % Install raspi-config dependencies (libnewt0.52 whiptail lua5.1)
+# % Install dependencies to build Pi modules (git build-essential bc bison flex libssl-dev device-tree-compiler)
+# % Install curl and unzip utilities
+# % Install missing libblockdev-mdraid
+apt update && apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
+
+# % Clean up after ourselves and clean out package cache to keep the image small
+apt autoremove -y && apt clean && apt autoclean
+
+# % Prepare source code to be able to build modules
+cd /usr/src/"${KERNEL_VERSION}"
+make -j4 bcm2711_defconfig
+cp -f /boot/config .config
+make -j4 prepare
+make -j4 modules_prepare
+
+# % Create kernel header/source symlink
+rm -rf /lib/modules/"${KERNEL_VERSION}"/build 
+rm -rf /lib/modules/"${KERNEL_VERSION}"/source
+ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/build
+ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
+
+/bin/bash /etc/rc.local
+
+EOF
+echo "The chroot container has exited"
+
+# % Grab our updated built source code for updates.tar.gz
+cp -rf /mnt/usr/src/"${KERNEL_VERSION}"/* ~/rpi-source
+
+# % Clean up after ourselves and remove qemu static binary
+sudo rm -rf /mnt/usr/bin/qemu-aarch64-static
+
+# % Set regulatory crda to enable 5 Ghz wireless
+sudo mkdir -p /mnt/etc/default
+sudo touch /mnt/etc/default/crda
+cat << EOF | sudo tee /mnt/etc/default/crda >/dev/null
+# Set REGDOMAIN to a ISO/IEC 3166-1 alpha2 country code so that iw(8) may set
+# the initial regulatory domain setting for IEEE 802.11 devices which operate
+# on this system.
+#
+# Governments assert the right to regulate usage of radio spectrum within
+# their respective territories so make sure you select a ISO/IEC 3166-1 alpha2
+# country code suitable for your location or you may infringe on local
+# legislature. See /usr/share/zoneinfo/zone.tab for a table of timezone
+# descriptions containing ISO/IEC 3166-1 alpha2 country codes.
+
+REGDOMAIN=US
+EOF
+
+# % Set loopback address in hosts to prevent slow bootup
+sudo touch /mnt/etc/hosts
+cat << EOF | sudo tee /mnt/etc/hosts >/dev/null
+127.0.0.1 localhost
+127.0.1.1 ubuntu
+
+# The following lines are desirable for IPv6 capable hosts
+::1 ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+ff02::3 ip6-allhosts
+EOF
+
+# % Update fstab to allow fsck to run on rootfs
+sudo touch /mnt/etc/fstab
+cat << EOF | sudo tee /mnt/etc/fstab >/dev/null
+LABEL=writable   /   ext4   defaults   0    1
+LABEL=system-boot       /boot/firmware  vfat    defaults        0       1
+EOF
 
 # % Store current release in home folder
 sudo touch /mnt/etc/imgrelease

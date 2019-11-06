@@ -317,6 +317,9 @@ fi
 # Fix update-initramfs mdadm.conf warning
 grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | tee -a /etc/mdadm/mdadm.conf >/dev/null;
 
+# Remove annoying crash message
+sudo rm -rf /var/crash/*
+
 exit 0
 EOF
 
