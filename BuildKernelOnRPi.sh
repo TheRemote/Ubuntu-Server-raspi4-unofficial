@@ -13,4 +13,4 @@ sudo make -j$(nproc) prepare
 sudo make -j$(nproc) modules_prepare
 
 # Line below compiles the whole kernel
-#sudo make -j$(nproc)
+sudo make -j$(nproc)

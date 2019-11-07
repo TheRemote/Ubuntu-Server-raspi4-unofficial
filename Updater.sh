@@ -18,13 +18,13 @@ sudo add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
 sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
 
 # Fix cups
-if [ -e /etc/modules-load.d/cups-filters.conf ]; then
-  rm /etc/modules-load.d/cups-filters.conf
+if [ -f /etc/modules-load.d/cups-filters.conf ]; then
+  rm -f /etc/modules-load.d/cups-filters.conf
   systemctl restart systemd-modules-load cups
 fi
 
 # Install dependencies
-sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y
+sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
 
 echo "Checking for updates ..."
@@ -169,13 +169,18 @@ if [ ! -d "/boot/overlays" ]; then sudo ln -s /boot/firmware/overlays /boot/over
 sudo echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" > /etc/udev/rules.d/10-local-rpi.rules
 
 # Startup tweaks to fix common issues
-sudo rm /etc/rc.local
-sudo touch /etc/rc.local
-cat << \EOF | sudo tee /etc/rc.local >/dev/null
+sudo rm /etc/ubuntufixes.sh
+sudo touch /etc/ubuntufixes.sh
+cat << \EOF | sudo tee /etc/ubuntufixes.sh >/dev/null
 #!/bin/bash
 #
-# rc.local
+# Ubuntu Fixes
+# More information available at:
+# https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/
+# https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
 #
+
+echo "Running Ubuntu fixes ..."
 
 # Fix sound by setting tsched = 0 and disabling analog mapping so Pulse maps the devices in stereo
 if [ -n "`which pulseaudio`" ]; then
@@ -320,10 +325,50 @@ if [ -z "$GrepCheck" ]; then
   sed -i "s/enabled=1/enabled=0/g" /etc/default/apport
 fi
 
+# Attach bluetooth
+if [ -n "`which hciattach`" ]; then
+  echo "Attaching Bluetooth controller ..."
+  hciattach /dev/ttyAMA0 bcm43xx 921600
+fi
+
+echo "Ubuntu fixes complete ..."
+
 exit 0
 EOF
 
-/bin/bash /etc/rc.local
+# Create Ubuntu fixes startup service
+sudo rm /etc/init.d/ubuntufixes
+sudo touch /etc/init.d/ubuntufixes
+cat << \EOF | sudo tee /etc/init.d/ubuntufixes >/dev/null
+#!/bin/bash
+# /etc/init.d/ubuntufixes
+
+### BEGIN INIT INFO
+# Provides:          ubuntufixes
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Runs ubuntu fixes on startup/shutdown
+# Description:       Runs ubuntu fixes on startup/shutdown
+### END INIT INFO
+
+/bin/bash /etc/ubuntufixes.sh
+
+exit 0
+EOF
+sudo chmod +x /etc/init.d/ubuntufixes
+sudo update-rc.d ubuntufixes defaults
+sudo /bin/bash /etc/ubuntufixes.sh
+
+# Remove old rc.local config method if present
+if [ -f /etc/rc.local ]; then
+  GrepCheck=$(cat /etc/rc.local | grep "which pulseaudio")
+  if [ ! -z "$GrepCheck" ]; then
+    echo "Removing old Ubuntu fix file ..."
+    sudo rm -f /etc/rc.local
+  fi
+fi
 
 echo "Update completed!"
 echo "Note: it is recommended to periodically clean out the old kernel source from /usr/src, it's quite large!"

@@ -51,6 +51,10 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
+<strong>November 7th - v20 Release</strong><br>
+<ul>
+<li>Fixed bug that was causing kernel modules to not load (updating using /home/Updater.sh recommended)</li>
+</ul>
 <strong>November 6th - v19 Release</strong><br>
 <ul>
 <li>Fixed PulseAudio only playing sound in mono, stereo now works!</li>

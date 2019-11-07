@@ -14,7 +14,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="19"
+IMAGE_VERSION="20"
 SOURCE_RELEASE="18.04.3"
 
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -733,12 +733,17 @@ echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" | sudo tee /mnt/etc/
 
 
 # % Startup tweaks to fix common issues
-sudo touch /mnt/etc/rc.local
-cat << \EOF | sudo tee /mnt/etc/rc.local >/dev/null
+sudo touch /mnt/etc/ubuntufixes.sh
+cat << \EOF | sudo tee /mnt/etc/ubuntufixes.sh >/dev/null
 #!/bin/bash
 #
-# rc.local
+# Ubuntu Fixes
+# More information available at:
+# https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/
+# https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
 #
+
+echo "Running Ubuntu fixes ..."
 
 # Fix sound by setting tsched = 0 and disabling analog mapping so Pulse maps the devices in stereo
 if [ -n "`which pulseaudio`" ]; then
@@ -883,9 +888,17 @@ if [ -z "$GrepCheck" ]; then
   sed -i "s/enabled=1/enabled=0/g" /etc/default/apport
 fi
 
+# Attach bluetooth
+if [ -n "`which hciattach`" ]; then
+  echo "Attaching Bluetooth controller ..."
+  hciattach /dev/ttyAMA0 bcm43xx 921600
+fi
+
+echo "Ubuntu fixes complete ..."
+
 exit 0
 EOF
-sudo chmod +x /mnt/etc/rc.local
+sudo chmod +x /mnt/etc/ubuntufixes.sh
 
 # % Copy resolv.conf from local host so we have networking in our chroot
 sudo mkdir -p /mnt/run/systemd/resolve
@@ -925,7 +938,7 @@ add-apt-repository ppa:oibaf/graphics-drivers -yn
 # % Install dependencies to build Pi modules (git build-essential bc bison flex libssl-dev device-tree-compiler)
 # % Install curl and unzip utilities
 # % Install missing libblockdev-mdraid
-apt update && apt install libblockdev-mdraid2 wireless-tools iw rfkill libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
+apt update && apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
 
 # % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
@@ -943,7 +956,29 @@ rm -rf /lib/modules/"${KERNEL_VERSION}"/source
 ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/build
 ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
 
-/bin/bash /etc/rc.local
+sudo rm /etc/init.d/ubuntufixes
+sudo touch /etc/init.d/ubuntufixes
+cat << \EOF2 | sudo tee /etc/init.d/ubuntufixes >/dev/null
+#!/bin/bash
+# /etc/init.d/ubuntufixes
+
+### BEGIN INIT INFO
+# Provides:          ubuntufixes
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Runs ubuntu fixes on startup/shutdown
+# Description:       Runs ubuntu fixes on startup/shutdown
+### END INIT INFO
+
+/bin/bash /etc/ubuntufixes.sh
+
+exit 0
+EOF2
+sudo chmod +x /etc/init.d/ubuntufixes
+sudo update-rc.d ubuntufixes defaults
+/bin/bash /etc/ubuntufixes.sh
 
 EOF
 echo "The chroot container has exited"

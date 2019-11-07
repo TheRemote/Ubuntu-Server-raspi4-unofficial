@@ -256,3 +256,6 @@ set_kernel_config CONFIG_PPS_CLIENT_PARPORT n
 # Sound
 set_kernel_config CONFIG_SND_MTS64 n
 set_kernel_config CONFIG_SND_PORTMAN2X4 n
+set_kernel_config CONFIG_USB_USS720 n
+set_kernel_config CONFIG_USB_SERIAL_MOS7715_PARPORT n
+set_kernel_config CONFIG_PANEL n
