@@ -238,3 +238,17 @@ set_kernel_config CONFIG_PRINTER m
 set_kernel_config CONFIG_PPDEV m
 set_kernel_config CONFIG_PARPORT m
 set_kernel_config CONFIG_PARPORT_NOT_PC y
+set_kernel_config CONFIG_BAYCOM_PAR n
+set_kernel_config CONFIG_PARPORT_AX88796 n
+set_kernel_config CONFIG_PARPORT_1284 n
+set_kernel_config CONFIG_PLIP m
+set_kernel_config CONFIG_JOYSTICK_DB9 n
+set_kernel_config CONFIG_JOYSTICK_GAMECON n
+set_kernel_config CONFIG_JOYSTICK_TURBOGRAFX n
+set_kernel_config CONFIG_JOYSTICK_WALKERA0701 n
+set_kernel_config SERIO_PARKBD n
+set_kernel_config LP_CONSOLE n
+set_kernel_config I2C_PARPORT n
+set_kernel_config SPI_BUTTERFLY n
+set_kernel_config SPI_LM70_LLP n
+set_kernel_config PPS_CLIENT_PARPORT n
