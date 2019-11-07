@@ -14,7 +14,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="19"
+IMAGE_VERSION="20"
 SOURCE_RELEASE="18.04.3"
 
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -759,22 +759,16 @@ if [ -n "`which pulseaudio`" ]; then
   GrepCheck=$(cat /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf | grep "device-strings = fake")
   if [ -z "$GrepCheck" ]; then
     sed -i '/^\[Mapping analog-mono\]/,+1s/device-strings = hw\:\%f.*/device-strings = fake\:\%f/' /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf
+    sed -i '/^\[Mapping multichannel-output\]/,+1s/device-strings = hw\:\%f.*/device-strings = fake\:\%f/' /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf
     pulseaudio -k
     pulseaudio --start
   fi
 fi
 
 # Fix cups
-if [ -e /etc/modules-load.d/cups-filters.conf ]; then
+if [ -f /etc/modules-load.d/cups-filters.conf ]; then
   echo "Fixing cups ..."
-  rm /etc/modules-load.d/cups-filters.conf
-  systemctl restart systemd-modules-load cups
-fi
-
-# Enable bluetooth
-if [ -n "`which hciattach`" ]; then
-  echo "Attaching Bluetooth controller ..."
-  hciattach /dev/ttyAMA0 bcm43xx 921600
+  rm -f /etc/modules-load.d/cups-filters.conf
 fi
 
 # Makes udev mounts visible
@@ -870,7 +864,7 @@ sed -i "s:0x48200100:0x44200100:g" /lib/firmware/brcm/brcmfmac43455-sdio.txt
 
 # Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
 if [ -f "/lib/modules-load.d/open-iscsi.conf" ]; then
-  GrepCheck=$(cat /etc/apt/sources.list | grep "#ib_iser")
+  GrepCheck=$(cat /lib/modules-load.d/open-iscsi.conf | grep "#ib_iser")
   if [ -z "$GrepCheck" ]; then
     echo "Fixing open-iscsi ..."
     sed -i "s/ib_iser/#ib_iser/g" /lib/modules-load.d/open-iscsi.conf

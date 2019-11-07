@@ -18,8 +18,8 @@ sudo add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
 sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
 
 # Fix cups
-if [ -f /etc/modules-load.d/cups-filters.conf ]; then
-  sudo rm -f /etc/modules-load.d/cups-filters.conf
+if [ -e /etc/modules-load.d/cups-filters.conf ]; then
+  rm /etc/modules-load.d/cups-filters.conf
   systemctl restart systemd-modules-load cups
 fi
 
@@ -169,15 +169,12 @@ if [ ! -d "/boot/overlays" ]; then sudo ln -s /boot/firmware/overlays /boot/over
 sudo echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" > /etc/udev/rules.d/10-local-rpi.rules
 
 # Startup tweaks to fix common issues
-sudo rm -f /etc/ubuntufixes.sh
-sudo touch /etc/ubuntufixes.sh
-cat << \EOF | sudo tee /etc/ubuntufixes.sh >/dev/null
+sudo rm /etc/rc.local
+sudo touch /etc/rc.local
+cat << \EOF | sudo tee /etc/rc.local >/dev/null
 #!/bin/bash
 #
-# Ubuntu fixes script
-# More information available at:
-# https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/
-# https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
+# rc.local
 #
 
 # Fix sound by setting tsched = 0 and disabling analog mapping so Pulse maps the devices in stereo
@@ -208,9 +205,7 @@ fi
 # Fix cups
 if [ -f /etc/modules-load.d/cups-filters.conf ]; then
   echo "Fixing cups ..."
-  sed -i "s/enabled=1/enabled=0/g" /etc/default/apport
   rm -f /etc/modules-load.d/cups-filters.conf
-  systemctl restart systemd-modules-load cups
 fi
 
 # Makes udev mounts visible
@@ -328,35 +323,7 @@ fi
 exit 0
 EOF
 
-# Add service so ubuntufixes.sh runs on startup and shutdown
-rm -f /etc/systemd/system/ubuntufixes.service
-touch /etc/systemd/system/ubuntufixes.service
-cat << EOF | tee /etc/system/system/ubuntufixes.service >/dev/null
-[Unit]
-Description=Run Ubuntu fixes
-After=network-online.target
-
-[Service]
-User=root
-WorkingDirectory=/
-Type=forking
-ExecStart=/bin/bash /etc/ubuntufixes.sh
-ExecStop=/bin/bash /etc/ubuntufixes.sh
-GuessMainPID=no
-TimeoutStartSec=30
-
-[Install]
-WantedBy=multi-user.target
-EOF
-systemctl daemon-reload
-systemctl enable ubuntufixes
-systemctl start ubuntufixes
-
-# Remove old fixes file
-GrepCheck=$(cat /etc/rc.local | grep "hciattach ")
-if [ -z "$GrepCheck" ]; then
-  sudo rm -f /etc/rc.local
-fi
+/bin/bash /etc/rc.local
 
 echo "Update completed!"
 echo "Note: it is recommended to periodically clean out the old kernel source from /usr/src, it's quite large!"
