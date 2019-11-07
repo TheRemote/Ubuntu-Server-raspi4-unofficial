@@ -246,9 +246,13 @@ set_kernel_config CONFIG_JOYSTICK_DB9 n
 set_kernel_config CONFIG_JOYSTICK_GAMECON n
 set_kernel_config CONFIG_JOYSTICK_TURBOGRAFX n
 set_kernel_config CONFIG_JOYSTICK_WALKERA0701 n
-set_kernel_config SERIO_PARKBD n
-set_kernel_config LP_CONSOLE n
-set_kernel_config I2C_PARPORT n
-set_kernel_config SPI_BUTTERFLY n
-set_kernel_config SPI_LM70_LLP n
-set_kernel_config PPS_CLIENT_PARPORT n
+set_kernel_config CONFIG_SERIO_PARKBD n
+set_kernel_config CONFIG_LP_CONSOLE n
+set_kernel_config CONFIG_I2C_PARPORT n
+set_kernel_config CONFIG_SPI_BUTTERFLY n
+set_kernel_config CONFIG_SPI_LM70_LLP n
+set_kernel_config CONFIG_PPS_CLIENT_PARPORT n
+
+# Sound
+set_kernel_config CONFIG_SND_MTS64 n
+set_kernel_config CONFIG_SND_PORTMAN2X4 n
