@@ -232,3 +232,9 @@ set_kernel_config CONFIG_LSM_MMAP_MIN_ADDR 0
 
 # Compiler options
 set_kernel_config CONFIG_OPTIMIZE_INLINING y
+
+# Printers
+set_kernel_config CONFIG_PRINTER m
+set_kernel_config CONFIG_PPDEV m
+set_kernel_config CONFIG_PARPORT m
+set_kernel_config CONFIG_PARPORT_NOT_PC y

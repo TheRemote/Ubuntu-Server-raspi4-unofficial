@@ -18,13 +18,13 @@ sudo add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
 sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
 
 # Fix cups
-if [ -e /etc/modules-load.d/cups-filters.conf ]; then
-  rm /etc/modules-load.d/cups-filters.conf
+if [ -f /etc/modules-load.d/cups-filters.conf ]; then
+  sudo rm -f /etc/modules-load.d/cups-filters.conf
   systemctl restart systemd-modules-load cups
 fi
 
 # Install dependencies
-sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y
+sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
 
 echo "Checking for updates ..."
@@ -153,7 +153,10 @@ fi
 sudo groupadd -f spi
 sudo groupadd -f i2c
 sudo groupadd -f gpio
-sudo usermod -aG adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev,spi,i2c,gpio "$SUDO_USER"
+sudo groupadd -f colord
+sudo groupadd -f geoclue
+sudo groupadd -f pulse
+sudo usermod -aG adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev,spi,i2c,gpio,geoclue,colord,pulse "$SUDO_USER"
 
 # % Clear /var/crash
 sudo rm -rf /var/crash/*
@@ -166,12 +169,15 @@ if [ ! -d "/boot/overlays" ]; then sudo ln -s /boot/firmware/overlays /boot/over
 sudo echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" > /etc/udev/rules.d/10-local-rpi.rules
 
 # Startup tweaks to fix common issues
-sudo rm /etc/rc.local
-sudo touch /etc/rc.local
-cat << \EOF | sudo tee /etc/rc.local >/dev/null
+sudo rm -f /etc/ubuntufixes.sh
+sudo touch /etc/ubuntufixes.sh
+cat << \EOF | sudo tee /etc/ubuntufixes.sh >/dev/null
 #!/bin/bash
 #
-# rc.local
+# Ubuntu fixes script
+# More information available at:
+# https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/
+# https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
 #
 
 # Fix sound by setting tsched = 0 and disabling analog mapping so Pulse maps the devices in stereo
@@ -200,16 +206,11 @@ if [ -n "`which pulseaudio`" ]; then
 fi
 
 # Fix cups
-if [ -e /etc/modules-load.d/cups-filters.conf ]; then
+if [ -f /etc/modules-load.d/cups-filters.conf ]; then
   echo "Fixing cups ..."
-  rm /etc/modules-load.d/cups-filters.conf
+  sed -i "s/enabled=1/enabled=0/g" /etc/default/apport
+  rm -f /etc/modules-load.d/cups-filters.conf
   systemctl restart systemd-modules-load cups
-fi
-
-# Enable bluetooth
-if [ -n "`which hciattach`" ]; then
-  echo "Attaching Bluetooth controller ..."
-  hciattach /dev/ttyAMA0 bcm43xx 921600
 fi
 
 # Makes udev mounts visible
@@ -305,7 +306,7 @@ sed -i "s:0x48200100:0x44200100:g" /lib/firmware/brcm/brcmfmac43455-sdio.txt
 
 # Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
 if [ -f "/lib/modules-load.d/open-iscsi.conf" ]; then
-  GrepCheck=$(cat /etc/apt/sources.list | grep "#ib_iser")
+  GrepCheck=$(cat /lib/modules-load.d/open-iscsi.conf | grep "#ib_iser")
   if [ -z "$GrepCheck" ]; then
     echo "Fixing open-iscsi ..."
     sed -i "s/ib_iser/#ib_iser/g" /lib/modules-load.d/open-iscsi.conf
@@ -327,7 +328,35 @@ fi
 exit 0
 EOF
 
-/bin/bash /etc/rc.local
+# Add service so ubuntufixes.sh runs on startup and shutdown
+rm -f /etc/systemd/system/ubuntufixes.service
+touch /etc/systemd/system/ubuntufixes.service
+cat << EOF | tee /etc/system/system/ubuntufixes.service >/dev/null
+[Unit]
+Description=Run Ubuntu fixes
+After=network-online.target
+
+[Service]
+User=root
+WorkingDirectory=/
+Type=forking
+ExecStart=/bin/bash /etc/ubuntufixes.sh
+ExecStop=/bin/bash /etc/ubuntufixes.sh
+GuessMainPID=no
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable ubuntufixes
+systemctl start ubuntufixes
+
+# Remove old fixes file
+GrepCheck=$(cat /etc/rc.local | grep "hciattach ")
+if [ -z "$GrepCheck" ]; then
+  sudo rm -f /etc/rc.local
+fi
 
 echo "Update completed!"
 echo "Note: it is recommended to periodically clean out the old kernel source from /usr/src, it's quite large!"

@@ -926,12 +926,12 @@ cd /
 # % Add updated mesa repository for video driver support
 add-apt-repository ppa:oibaf/graphics-drivers -yn
 
-# % Install wireless tools and bluetooth (wireless-tools, iw, rfkill, bluez)
+# % Install wireless tools (wireless-tools, iw, rfkill)
 # % Install raspi-config dependencies (libnewt0.52 whiptail lua5.1)
 # % Install dependencies to build Pi modules (git build-essential bc bison flex libssl-dev device-tree-compiler)
 # % Install curl and unzip utilities
 # % Install missing libblockdev-mdraid
-apt update && apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
+apt update && apt install libblockdev-mdraid2 wireless-tools iw rfkill libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
 
 # % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
