@@ -819,23 +819,6 @@ if [ -f /lib/systemd/system/triggerhappy.socket ]; then
   systemctl daemon-reload
 fi
 
-# Fix netplan
-GrepCheck=$(cat /etc/netplan/50-cloud-init.yaml | grep "optional: true")
-if [ -z "$GrepCheck" ]; then
-  echo "Fixing netplan ..."
-  rm -rf /etc/netplan/50-cloud-init.yaml
-  touch /etc/netplan/50-cloud-init.yaml
-  cat << EOF2 | tee /etc/netplan/50-cloud-init.yaml >/dev/null
-network:
-    ethernets:
-        eth0:
-            dhcp4: true
-            optional: true
-    version: 2
-EOF2
-  netplan generate 
-  netplan --debug apply
-fi
 
 # Add proposed apt archive
 GrepCheck=$(cat /etc/apt/sources.list | grep "ubuntu-ports bionic-proposed")

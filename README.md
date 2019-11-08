@@ -51,6 +51,11 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
+<strong>Development - v21</strong><br>
+<ul>
+<li>Netplan changes removed by popular demand -- it was causing too many issues as everyone is using the image differently</li>
+<li>Updater now removes old kernel source code automatically (no more manual cleaning of these large folders needed)</li>
+</ul>
 <strong>November 7th - v20 Release</strong><br>
 <ul>
 <li>Fixed bug that was causing kernel modules to not load (updating using /home/Updater.sh recommended)</li>

@@ -86,7 +86,7 @@ if [ "$answer" == "${answer#[Yy]}" ]; then
 fi
 
 # Cleaning up old stuff
-sudo apt purge libraspberrypi-bin raspi-config -y
+sudo apt purge libraspberrypi-bin raspi-config -y >/dev/null
 
 echo "Downloading update package ..."
 if [ -e "updates.tar.xz" ]; then rm -rf "updates.tar.xz"; fi
@@ -102,6 +102,9 @@ sudo rm -rf updates
 sudo tar -xf "updates.tar.xz"
 
 if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
+    echo "Removing old kernel source code ..."
+    sudo rm -rf /usr/src/4.19*
+    
     echo "Copying updates to rootfs ..."
     sudo cp -rav --no-preserve=ownership updates/rootfs/* /
 
@@ -256,24 +259,6 @@ if [ -f /lib/systemd/system/triggerhappy.socket ]; then
   systemctl daemon-reload
 fi
 
-# Fix netplan
-GrepCheck=$(cat /etc/netplan/50-cloud-init.yaml | grep "optional: true")
-if [ -z "$GrepCheck" ]; then
-  echo "Fixing netplan ..."
-  rm -rf /etc/netplan/50-cloud-init.yaml
-  touch /etc/netplan/50-cloud-init.yaml
-  cat << EOF2 | tee /etc/netplan/50-cloud-init.yaml >/dev/null
-network:
-    ethernets:
-        eth0:
-            dhcp4: true
-            optional: true
-    version: 2
-EOF2
-  netplan generate 
-  netplan --debug apply
-fi
-
 # Add proposed apt archive
 GrepCheck=$(cat /etc/apt/sources.list | grep "ubuntu-ports bionic-proposed")
 if [ -z "$GrepCheck" ]; then
@@ -371,5 +356,4 @@ if [ -f /etc/rc.local ]; then
 fi
 
 echo "Update completed!"
-echo "Note: it is recommended to periodically clean out the old kernel source from /usr/src, it's quite large!"
 echo "You should now reboot the system."
