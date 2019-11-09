@@ -86,7 +86,7 @@ if [ "$answer" == "${answer#[Yy]}" ]; then
 fi
 
 # Cleaning up old stuff
-sudo apt purge libraspberrypi-bin raspi-config -y >/dev/null
+sudo apt -qq purge libraspberrypi-bin raspi-config -y >/dev/null 2>&1
 
 echo "Downloading update package ..."
 if [ -e "updates.tar.xz" ]; then rm -rf "updates.tar.xz"; fi
