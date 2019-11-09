@@ -156,9 +156,6 @@ fi
 sudo groupadd -f spi
 sudo groupadd -f i2c
 sudo groupadd -f gpio
-sudo groupadd -f colord
-sudo groupadd -f geoclue
-sudo groupadd -f pulse
 sudo usermod -aG adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev,spi,i2c,gpio,geoclue,colord,pulse "$SUDO_USER"
 
 # % Clear /var/crash

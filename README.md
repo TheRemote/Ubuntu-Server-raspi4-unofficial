@@ -1,5 +1,5 @@
 <h2>Overview</h2>
-This is a Raspberry Pi 4 compatible Ubuntu 18.04.3 preinstalled server for the new (and currently unsupported officially in the 18.04 LTS series) Raspberry Pi 4.<br>
+This is a Raspberry Pi 4 compatible Ubuntu 18.04.3 preinstalled desktop/server for the new (and currently unsupported officially in the 18.04 LTS series) Raspberry Pi 4.<br>
 <br>
 For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/ including a walkthrough and lots of comments / discussion.<br>
 <br>
@@ -51,8 +51,9 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
-<strong>Development - v21</strong><br>
+<strong>November 8th - v21 Release</strong><br>
 <ul>
+<li>Preinstalled Desktop binary (ubuntu-desktop) now available in the releases section</li>
 <li>Netplan changes removed by popular demand -- it was causing too many issues as everyone is using the image differently</li>
 <li>Updater now removes old kernel source code automatically (no more manual cleaning of these large folders needed)</li>
 </ul>

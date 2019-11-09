@@ -14,11 +14,13 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="20"
+IMAGE_VERSION="21"
 SOURCE_RELEASE="18.04.3"
 
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
 TARGET_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img.xz"
+DESKTOP_IMGXZ="ubuntu-18.04.3-preinstalled-desktop-arm64+raspi4.img.xz"
+DESKTOP_IMG="ubuntu-18.04.3-preinstalled-desktop-arm64+raspi4.img"
 SOURCE_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img"
 SOURCE_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
 RASPBIAN_IMG="2019-09-26-raspbian-buster-lite.img"
@@ -311,6 +313,68 @@ function UpdateIMG {
 EOF
 }
 
+function ShrinkIMG {
+  MountIMG $1
+
+  tune2fs_output=$(sudo tune2fs -l "/dev/mapper/${MOUNT_IMG}p2")
+  currentsize=$(echo "$tune2fs_output" | grep '^Block count:' | tr -d ' ' | cut -d ':' -f 2)
+  blocksize=$(echo "$tune2fs_output" | grep '^Block size:' | tr -d ' ' | cut -d ':' -f 2)
+  minsize=$(sudo resize2fs -P "/dev/mapper/${MOUNT_IMG}p2" | tr -d ' ' | cut -d ':' -f 2)
+  extra_space=$(($currentsize - $minsize))
+
+  beforesize=$(ls -lh "$1" | cut -d ' ' -f 5)
+  parted_output=$(sudo parted -ms "$1" unit B print | tail -n 1)
+  partnum=$(echo "$parted_output" | cut -d ':' -f 1)
+  partstart=$(echo "$parted_output" | cut -d ':' -f 2 | tr -d 'B')
+  
+  # Add 10000 blocks of free space
+  minsize=$(( $minsize + 10000 ))
+
+  sudo resize2fs -fp "/dev/mapper/${MOUNT_IMG}p2" $minsize
+
+  UnmountIMG "$1"
+
+  partnewsize=$(($minsize * $blocksize))
+  newpartend=$(($partstart + $partnewsize))
+
+  if ! sudo parted -s -a minimal "$1" rm "$partnum"; then
+    rc=$?
+    echo "parted failed: $rc"
+    return
+  fi
+
+  if ! sudo parted -s "$1" unit B mkpart primary "$partstart" "$newpartend"; then
+    rc=$?
+    echo "parted failed: $rc"
+    return
+  fi
+
+  #Truncate the file
+  if ! endresult=$(sudo parted -ms "$1" unit B print free); then
+    rc=$?
+    echo "parted failed: $rc"
+    return
+  fi
+
+  endresult=$(tail -1 <<< "$endresult" | cut -d ':' -f 2 | tr -d 'B')
+  if ! sudo truncate -s "$endresult" "$1"; then
+    rc=$?
+    echo "truncate failed: $rc"
+    return
+  fi
+
+  MountIMG "$1"
+
+  # Run e2fsck
+  echo "Running e2fsck"
+  sudo fsck.ext4 -pfv "/dev/mapper/${MOUNT_IMG}p2"
+  sync; sync
+  sleep "$SLEEP_SHORT"
+  UnmountIMG "$1"
+
+  CompactIMG $1
+}
+
 ##################################################################################################################
 
 # Get crosschain toolkit
@@ -419,7 +483,7 @@ fi
 cp -vf "$SOURCE_IMG" "$TARGET_IMG"
 # % Expands the target image by approximately 300MB to help us not run out of space and encounter errors
 echo "Expanding target image free space ..."
-truncate -s +909715200 "$TARGET_IMG"
+truncate -s +709715200 "$TARGET_IMG"
 sync; sync
 
 # GET USERLAND
@@ -569,7 +633,7 @@ MountIMG "$TARGET_IMG"
 
 # Run resize2fs
 echo "Running resize2fs"
-sudo resize2fs "/dev/mapper/${MOUNT_IMG}p2"
+sudo resize2fs -p "/dev/mapper/${MOUNT_IMG}p2"
 sync; sync
 sleep "$SLEEP_SHORT"
 UnmountIMG "$TARGET_IMG"
@@ -939,7 +1003,6 @@ rm -rf /lib/modules/"${KERNEL_VERSION}"/source
 ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/build
 ln -s /usr/src/"${KERNEL_VERSION}"/ /lib/modules/"${KERNEL_VERSION}"/source
 
-sudo rm /etc/init.d/ubuntufixes
 sudo touch /etc/init.d/ubuntufixes
 cat << \EOF2 | sudo tee /etc/init.d/ubuntufixes >/dev/null
 #!/bin/bash
@@ -963,14 +1026,24 @@ sudo chmod +x /etc/init.d/ubuntufixes
 sudo update-rc.d ubuntufixes defaults
 /bin/bash /etc/ubuntufixes.sh
 
+rm -rf /etc/netplan/50-cloud-init.yaml	
+touch /etc/netplan/50-cloud-init.yaml	
+cat << EOF2 | tee /etc/netplan/50-cloud-init.yaml >/dev/null	
+network:	
+  ethernets:	
+      eth0:	
+          dhcp4: true	
+          optional: true	
+  version: 2	
+EOF2
+netplan generate
+netplan --debug apply
+
 EOF
 echo "The chroot container has exited"
 
 # % Grab our updated built source code for updates.tar.gz
 cp -rf /mnt/usr/src/"${KERNEL_VERSION}"/* ~/rpi-source
-
-# % Clean up after ourselves and remove qemu static binary
-sudo rm -rf /mnt/usr/bin/qemu-aarch64-static
 
 # % Set regulatory crda to enable 5 Ghz wireless
 sudo mkdir -p /mnt/etc/default
@@ -1025,6 +1098,74 @@ sudo fsck.fat -av "/dev/mapper/${MOUNT_IMG}p1"
 UnmountIMG "$TARGET_IMG"
 CompactIMG "$TARGET_IMG"
 
+# Build desktop image
+echo "Creating desktop image ..."
+if [ -f "$DESKTOP_IMG" ]; then
+  sudo rm -rf "$DESKTOP_IMG"
+fi
+cp -vf "$TARGET_IMG" "$DESKTOP_IMG"
+# % Expands the target image by approximately 2GB to help us not run out of space and encounter errors
+echo "Expanding desktop image free space ..."
+truncate -s +3009715200 "$DESKTOP_IMG"
+sync; sync
+
+MountIMG "$DESKTOP_IMG"
+
+# Run fdisk
+# % Get the starting offset of the root partition
+PART_START=$(sudo parted "/dev/${MOUNT_IMG}" -ms unit s p | grep ":ext4" | cut -f 2 -d: | sed 's/[^0-9]//g')
+# % Perform fdisk to correct the partition table
+sudo fdisk "/dev/${MOUNT_IMG}" << EOF
+p
+d
+2
+n
+p
+2
+$PART_START
+
+p
+w
+EOF
+
+UnmountIMG "$DESKTOP_IMG"
+MountIMG "$DESKTOP_IMG"
+
+# Run e2fsck
+echo "Running e2fsck"
+sudo e2fsck -fva "/dev/mapper/${MOUNT_IMG}p2"
+sync; sync
+sleep "$SLEEP_SHORT"
+UnmountIMG "$DESKTOP_IMG"
+MountIMG "$DESKTOP_IMG"
+
+# Run resize2fs
+echo "Running resize2fs"
+sudo resize2fs -p "/dev/mapper/${MOUNT_IMG}p2"
+sync; sync
+sleep "$SLEEP_SHORT"
+UnmountIMG "$DESKTOP_IMG"
+
+# Compact image after our file operations
+CompactIMG "$DESKTOP_IMG"
+MountIMG "$DESKTOP_IMG"
+MountIMGPartitions "${MOUNT_IMG}"
+
+sudo chroot /mnt /bin/bash << EOF
+apt update && apt install ubuntu-desktop -y
+/bin/bash /etc/ubuntufixes.sh
+EOF
+
+# Run the after clean function
+AfterCleanIMG
+
+# Run fsck on image then unmount and remount
+UnmountIMGPartitions
+sudo fsck.ext4 -pfv "/dev/mapper/${MOUNT_IMG}p2"
+sudo fsck.fat -av "/dev/mapper/${MOUNT_IMG}p1"
+UnmountIMG "$DESKTOP_IMG"
+CompactIMG "$DESKTOP_IMG"
+
 # Clean firmware
 # % Remove files that haven't changed from the base 18.04.3 files
 cd ~/firmware-ubuntu-1804
@@ -1051,11 +1192,20 @@ done
 find . -xtype l -delete
 cd ~
 
+# Shrink images
+ShrinkIMG "$DESKTOP_IMG"
+ShrinkIMG "$TARGET_IMG"
+
 # Compress img into xz file
-echo "Compressing final img.xz file ..."
+echo "Compressing final server img.xz file ..."
 sleep "$SLEEP_SHORT"
 sudo rm -rf "$TARGET_IMGXZ"
 xz -9e --force --keep --threads=0 --quiet "$TARGET_IMG"
+
+echo "Compressing final desktop img.xz file ..."
+sleep "$SLEEP_SHORT"
+sudo rm -rf "$DESKTOP_IMGXZ"
+xz -9e --force --keep --threads=0 --quiet "$DESKTOP_IMG"
 
 # Compress our updates used for the autoupdater
 echo "Compressing updates.tar.xz ..."
