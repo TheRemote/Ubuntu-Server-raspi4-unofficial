@@ -341,7 +341,7 @@ exit 0
 EOF
 sudo chmod +x /etc/init.d/ubuntufixes
 sudo update-rc.d ubuntufixes defaults
-sudo /bin/bash /etc/ubuntufixes.sh
+sudo /bin/bash /etc/ubuntufixes.sh >/dev/null 2>&1
 
 # Remove old rc.local config method if present
 if [ -f /etc/rc.local ]; then
