@@ -313,6 +313,19 @@ if [ -n "`which hciattach`" ]; then
   hciattach /dev/ttyAMA0 bcm43xx 921600
 fi
 
+# Fix xubuntu-desktop/lightdm if present
+if [ -n "`which lightdm`" ]; then
+  if [ ! -f "/etc/X11/xorg.conf" ]; then
+    cat << EOF2 | tee /etc/X11/xorg.conf >/dev/null
+Section "Device"
+Identifier "Card0"
+Driver "fbdev"
+EndSection
+EOF2
+    systemctl restart lightdm
+  fi
+fi
+
 echo "Ubuntu fixes complete ..."
 
 exit 0
