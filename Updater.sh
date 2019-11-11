@@ -316,6 +316,7 @@ fi
 # Fix xubuntu-desktop/lightdm if present
 if [ -n "`which lightdm`" ]; then
   if [ ! -f "/etc/X11/xorg.conf" ]; then
+    echo "Fixing LightDM ..."
     cat << EOF2 | tee /etc/X11/xorg.conf >/dev/null
 Section "Device"
 Identifier "Card0"
