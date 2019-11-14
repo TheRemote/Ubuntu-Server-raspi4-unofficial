@@ -1,5 +1,5 @@
 <h2>Overview</h2>
-This is a Raspberry Pi 4 compatible Ubuntu 18.04.3 preinstalled server for the new (and currently unsupported officially in the 18.04 LTS series) Raspberry Pi 4.<br>
+This is a Raspberry Pi 4 compatible Ubuntu 18.04.3 preinstalled desktop/server for the new (and currently unsupported officially in the 18.04 LTS series) Raspberry Pi 4.<br>
 <br>
 For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/ including a walkthrough and lots of comments / discussion.<br>
 <br>
@@ -51,6 +51,26 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
+<strong>November 8th - v21 Release</strong><br>
+<ul>
+<li>Preinstalled Desktop binary (ubuntu-desktop) now available in the releases section</li>
+<li>Netplan changes removed by popular demand -- it was causing too many issues as everyone is using the image differently</li>
+<li>Updater now removes old kernel source code automatically (no more manual cleaning of these large folders needed)</li>
+</ul>
+<strong>November 7th - v20 Release</strong><br>
+<ul>
+<li>Fixed bug that was causing kernel modules to not load (updating using /home/Updater.sh recommended)</li>
+</ul>
+<strong>November 6th - v19 Release</strong><br>
+<ul>
+<li>Fixed PulseAudio only playing sound in mono, stereo now works!</li>
+<li>Added kernel flags to optimize speed/clean up warnings/fix crashes</li>
+<li>Moved most fixes to /etc/rc.local so they are applied after installing a *ubuntu-desktop package without waiting for the next update</li>
+<li>Removed machine-id from the base image so that cloned images wouldn't all have a duplicate machine-id</li>
+<li>Fixed audit service error</li>
+<li>Fixed "spice-vdagent[2107]: Cannot access vdagent virtio channel /dev/virtio-ports/com.redhat.spice.0" error</li>
+<li>Fixed triggerhappy crash related to /lib/systemd/system/triggerhappy.socket being wrong type</li>
+</ul>
 <strong>November 3rd - v18 Release</strong><br>
 <ul>
 <li>Update to kernel 4.19.81</li>

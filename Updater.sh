@@ -18,13 +18,13 @@ sudo add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
 sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
 
 # Fix cups
-if [ -e /etc/modules-load.d/cups-filters.conf ]; then
-  rm /etc/modules-load.d/cups-filters.conf
+if [ -f /etc/modules-load.d/cups-filters.conf ]; then
+  rm -f /etc/modules-load.d/cups-filters.conf
   systemctl restart systemd-modules-load cups
 fi
 
 # Install dependencies
-sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez haveged libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y
+sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y
 sudo apt-get dist-upgrade -y
 
 echo "Checking for updates ..."
@@ -52,7 +52,7 @@ UpdatesHashNew=$(sha1sum ".updates/Ubuntu-Server-raspi4-unofficial/Updater.sh" |
 
 if [ "$UpdatesHashOld" != "$UpdatesHashNew" ]; then
     echo "Updater has update available.  Updating now ..."
-    sudo rm -f Updater.sh
+    sudo rm -rf Updater.sh
     sudo cp -f .updates/Ubuntu-Server-raspi4-unofficial/Updater.sh Updater.sh
     sudo chmod +x Updater.sh
     exec $(readlink -f "Updater.sh")
@@ -86,10 +86,10 @@ if [ "$answer" == "${answer#[Yy]}" ]; then
 fi
 
 # Cleaning up old stuff
-sudo apt purge libraspberrypi-bin raspi-config -y
+sudo apt -qq purge libraspberrypi-bin raspi-config -y >/dev/null 2>&1
 
 echo "Downloading update package ..."
-if [ -e "updates.tar.xz" ]; then rm -f "updates.tar.xz"; fi
+if [ -e "updates.tar.xz" ]; then rm -rf "updates.tar.xz"; fi
 sudo curl --location "https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/releases/download/v${LatestRelease}/updates.tar.xz" --output "updates.tar.xz"
 if [ ! -e "updates.tar.xz" ]; then
     echo "Update has failed to download -- please try again later"
@@ -102,11 +102,14 @@ sudo rm -rf updates
 sudo tar -xf "updates.tar.xz"
 
 if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
+    echo "Removing old kernel source code ..."
+    sudo rm -rf /usr/src/4.19*
+    
     echo "Copying updates to rootfs ..."
-    sudo cp --verbose --archive --no-preserve=ownership updates/rootfs/* /
+    sudo cp -rav --no-preserve=ownership updates/rootfs/* /
 
     echo "Copying updates to bootfs ..."
-    sudo cp --verbose --archive --no-preserve=ownership updates/bootfs/* /boot/firmware
+    sudo cp -rav --no-preserve=ownership updates/bootfs/* /boot/firmware
 
     # Update initramfs so our new kernel and modules are picked up
     echo "Updating kernel and modules ..."
@@ -114,11 +117,11 @@ if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     sudo depmod "${KERNEL_VERSION}"
 
     # Create kernel and component symlinks
-    sudo rm -f /boot/initrd.img
-    sudo rm -f /boot/vmlinux
-    sudo rm -f /boot/System.map
-    sudo rm -f /boot/Module.symvers
-    sudo rm -f /boot/config
+    sudo rm -rf /boot/initrd.img
+    sudo rm -rf /boot/vmlinux
+    sudo rm -rf /boot/System.map
+    sudo rm -rf /boot/Module.symvers
+    sudo rm -rf /boot/config
     sudo ln -s /boot/initrd.img-"${KERNEL_VERSION}" /boot/initrd.img
     sudo ln -s /boot/vmlinux-"${KERNEL_VERSION}" /boot/vmlinux
     sudo ln -s /boot/System.map-"${KERNEL_VERSION}" /boot/System.map
@@ -137,14 +140,14 @@ if [[ -d "updates" && -d "updates/rootfs" && -d "updates/bootfs" ]]; then
     sudo update-initramfs -k "${KERNEL_VERSION}" -u
 
     echo "Cleaning up downloaded files ..."
-    sudo rm -f "updates.tar.xz"
+    sudo rm -rf "updates.tar.xz"
     sudo rm -rf updates
 
     # Save our new updated release to .lastupdate file
     sudo touch /etc/imgrelease
     echo "$LatestRelease" | sudo tee /etc/imgrelease >/dev/null;
 else
-    sudo rm -f "updates.tar.xz"
+    sudo rm -rf "updates.tar.xz"
     echo "Update has failed to extract.  Please try again later!"
     exit
 fi
@@ -153,74 +156,68 @@ fi
 sudo groupadd -f spi
 sudo groupadd -f i2c
 sudo groupadd -f gpio
-sudo usermod -aG adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev,spi,i2c,gpio "$SUDO_USER"
+sudo usermod -aG adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev,spi,i2c,gpio,geoclue,colord,pulse "$SUDO_USER"
 
 # % Clear /var/crash
 sudo rm -rf /var/crash/*
 
 # % Fix /lib/firmware symlink, overlays symlink
-sudo ln -s /lib/firmware /etc/firmware
-sudo ln -s /boot/firmware/overlays /boot/overlays
-
-# % Fix WiFi
-# % The Pi 4 version returns boardflags3=0x44200100
-# % The Pi 3 version returns boardflags3=0x48200100cd
-sudo sed -i "s:0x48200100:0x44200100:g" /lib/firmware/brcm/brcmfmac43455-sdio.txt
-
-# % Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
-sudo sed -i "s/ib_iser/#ib_iser/g" /lib/modules-load.d/open-iscsi.conf
-sudo sed -i "s/iscsi_tcp/#iscsi_tcp/g" /lib/modules-load.d/open-iscsi.conf
+if [ ! -d "/etc/firmware" ]; then sudo ln -s /lib/firmware /etc/firmware; fi
+if [ ! -d "/boot/overlays" ]; then sudo ln -s /boot/firmware/overlays /boot/overlays; fi
 
 # % Add udev rule so users can use vcgencmd without sudo
 sudo echo "SUBSYSTEM==\"vchiq\", GROUP=\"video\", MODE=\"0660\"" > /etc/udev/rules.d/10-local-rpi.rules
 
-# % Fix update-initramfs mdadm.conf warning
-sudo grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | sudo tee -a /etc/mdadm/mdadm.conf >/dev/null;
-
-# Startup tweaks to fix bluetooth and sound issues
-sudo rm /etc/rc.local
-sudo touch /etc/rc.local
-cat << \EOF | sudo tee /etc/rc.local
+# Startup tweaks to fix common issues
+sudo rm /etc/ubuntufixes.sh
+sudo touch /etc/ubuntufixes.sh
+cat << \EOF | sudo tee /etc/ubuntufixes.sh >/dev/null
 #!/bin/bash
 #
-# rc.local
+# Ubuntu Fixes
+# More information available at:
+# https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/
+# https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial
 #
+
+echo "Running Ubuntu fixes ..."
 
 # Fix sound by setting tsched = 0 and disabling analog mapping so Pulse maps the devices in stereo
 if [ -n "`which pulseaudio`" ]; then
   GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0")
   if [ -z "$GrepCheck" ]; then
+    echo "Fixing PulseAudio ..."
     sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
+    systemctl restart systemd-modules-load
   else
     GrepCheck=$(cat /etc/pulse/default.pa | grep "tsched=0 tsched=0")
     if [ ! -z "$GrepCheck" ]; then
         sed -i 's/tsched=0//g' /etc/pulse/default.pa
         sed -i "s:load-module module-udev-detect:load-module module-udev-detect tsched=0:g" /etc/pulse/default.pa
+        systemctl restart systemd-modules-load
     fi
   fi
 
   GrepCheck=$(cat /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf | grep "device-strings = fake")
   if [ -z "$GrepCheck" ]; then
     sed -i '/^\[Mapping analog-mono\]/,+1s/device-strings = hw\:\%f.*/device-strings = fake\:\%f/' /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf
+    sed -i '/^\[Mapping multichannel-output\]/,+1s/device-strings = hw\:\%f.*/device-strings = fake\:\%f/' /usr/share/pulseaudio/alsa-mixer/profile-sets/default.conf
     pulseaudio -k
     pulseaudio --start
   fi
 fi
 
 # Fix cups
-if [ -e /etc/modules-load.d/cups-filters.conf ]; then
-  rm /etc/modules-load.d/cups-filters.conf
-  systemctl restart systemd-modules-load cups
-fi
-
-# Enable bluetooth
-if [ -n "`which hciattach`" ]; then
-  echo "Attaching Bluetooth controller ..."
-  hciattach /dev/ttyAMA0 bcm43xx 921600
+if [ -f /etc/modules-load.d/cups-filters.conf ]; then
+  echo "Fixing cups ..."
+  rm -f /etc/modules-load.d/cups-filters.conf
 fi
 
 # Makes udev mounts visible
 if [ "$(systemctl show systemd-udevd | grep 'MountFlags' | cut -d = -f 2)" != "shared" ]; then
+  if [ ! -d "/etc/systemd/system/systemd-udevd.service.d/" ]; then
+    mkdir -p "/etc/systemd/system/systemd-udevd.service.d/"
+  fi
   OverrideFile=/etc/systemd/system/systemd-udevd.service.d/override.conf
   read -r -d '' Override << EOF2
 [Service]
@@ -253,44 +250,121 @@ EOF2
 fi
 
 # Remove triggerhappy bugged socket that causes problems for udev on Pis
-sudo rm -f /lib/systemd/system/triggerhappy.socket
-
-exit 0
-EOF
-sudo chmod +x /etc/rc.local
-
-# Fix netplan
-GrepCheck=$(cat /etc/netplan/50-cloud-init.yaml | grep "optional: true")
-if [ -z "$GrepCheck" ]; then
-    sudo rm -f /etc/netplan/50-cloud-init.yaml
-    sudo touch /etc/netplan/50-cloud-init.yaml
-    cat << EOF | sudo tee /etc/netplan/50-cloud-init.yaml
-    network:
-        ethernets:
-            eth0:
-                dhcp4: true
-                optional: true
-        version: 2
-EOF
-    sudo netplan generate 
-    sudo netplan --debug apply
+if [ -f /lib/systemd/system/triggerhappy.socket ]; then
+  echo "Fixing triggerhappy ..."
+  sudo rm -rf /lib/systemd/system/triggerhappy.socket
+  systemctl daemon-reload
 fi
 
 # Add proposed apt archive
 GrepCheck=$(cat /etc/apt/sources.list | grep "ubuntu-ports bionic-proposed")
 if [ -z "$GrepCheck" ]; then
-    cat << EOF | sudo tee -a /etc/apt/sources.list
+    cat << EOF2 | tee -a /etc/apt/sources.list >/dev/null
 deb http://ports.ubuntu.com/ubuntu-ports bionic-proposed restricted main multiverse universe
-EOF
-fi
-
-sudo touch /etc/apt/preferences.d/proposed-updates 
-cat << EOF | sudo tee /etc/apt/preferences.d/proposed-updates
+EOF2
+touch /etc/apt/preferences.d/proposed-updates 
+cat << EOF2 | tee /etc/apt/preferences.d/proposed-updates >/dev/null
 Package: *
 Pin: release a=bionic-proposed
 Pin-Priority: 400
+EOF2
+fi
+
+# Fix Cannot access /dev/virtio-ports/com.redhat.spice.0
+if [ -f "/usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop" ]; then
+  GrepCheck=$(cat /usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop | grep "X-GNOME-Autostart-enabled=false")
+  if [ -z "$GrepCheck" ]; then
+    echo "Fixing spice-vdagent ..."
+    echo 'X-GNOME-Autostart-enabled=false' | tee -a /usr/share/gdm/autostart/LoginWindow/spice-vdagent.desktop >/dev/null
+    echo 'X-GNOME-Autostart-enabled=false' | tee -a /etc/xdg/autostart/spice-vdagent.desktop >/dev/null
+    systemctl stop spice-vdagentd
+    systemctl disable spice-vdagentd
+    systemctl daemon-reload
+  fi
+fi
+
+# Fix WiFi
+sed -i "s:0x48200100:0x44200100:g" /lib/firmware/brcm/brcmfmac43455-sdio.txt
+
+# Disable ib_iser iSCSI cloud module to prevent an error during systemd-modules-load at boot
+if [ -f "/lib/modules-load.d/open-iscsi.conf" ]; then
+  GrepCheck=$(cat /lib/modules-load.d/open-iscsi.conf | grep "#ib_iser")
+  if [ -z "$GrepCheck" ]; then
+    echo "Fixing open-iscsi ..."
+    sed -i "s/ib_iser/#ib_iser/g" /lib/modules-load.d/open-iscsi.conf
+    sed -i "s/iscsi_tcp/#iscsi_tcp/g" /lib/modules-load.d/open-iscsi.conf
+    systemctl restart systemd-modules-load
+  fi
+fi
+
+# Fix update-initramfs mdadm.conf warning
+grep "ARRAY devices" /etc/mdadm/mdadm.conf >/dev/null || echo "ARRAY devices=/dev/sda" | tee -a /etc/mdadm/mdadm.conf >/dev/null;
+
+# Remove annoying crash messages that never go away
+sudo rm -rf /var/crash/*
+GrepCheck=$(cat /etc/default/apport | grep "enabled=0")
+if [ -z "$GrepCheck" ]; then
+  sed -i "s/enabled=1/enabled=0/g" /etc/default/apport
+fi
+
+# Attach bluetooth
+if [ -n "`which hciattach`" ]; then
+  echo "Attaching Bluetooth controller ..."
+  hciattach /dev/ttyAMA0 bcm43xx 921600
+fi
+
+# Fix xubuntu-desktop/lightdm if present
+if [ -n "`which lightdm`" ]; then
+  if [ ! -f "/etc/X11/xorg.conf" ]; then
+    echo "Fixing LightDM ..."
+    cat << EOF2 | tee /etc/X11/xorg.conf >/dev/null
+Section "Device"
+Identifier "Card0"
+Driver "fbdev"
+EndSection
+EOF2
+    systemctl restart lightdm
+  fi
+fi
+
+echo "Ubuntu fixes complete ..."
+
+exit 0
 EOF
 
+# Create Ubuntu fixes startup service
+sudo rm /etc/init.d/ubuntufixes
+sudo touch /etc/init.d/ubuntufixes
+cat << \EOF | sudo tee /etc/init.d/ubuntufixes >/dev/null
+#!/bin/bash
+# /etc/init.d/ubuntufixes
+
+### BEGIN INIT INFO
+# Provides:          ubuntufixes
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Runs ubuntu fixes on startup/shutdown
+# Description:       Runs ubuntu fixes on startup/shutdown
+### END INIT INFO
+
+/bin/bash /etc/ubuntufixes.sh
+
+exit 0
+EOF
+sudo chmod +x /etc/init.d/ubuntufixes
+sudo update-rc.d ubuntufixes defaults
+sudo /bin/bash /etc/ubuntufixes.sh >/dev/null 2>&1
+
+# Remove old rc.local config method if present
+if [ -f /etc/rc.local ]; then
+  GrepCheck=$(cat /etc/rc.local | grep "which pulseaudio")
+  if [ ! -z "$GrepCheck" ]; then
+    echo "Removing old Ubuntu fix file ..."
+    sudo rm -f /etc/rc.local
+  fi
+fi
+
 echo "Update completed!"
-echo "Note: it is recommended to periodically clean out the old kernel source from /usr/src, it's quite large!"
 echo "You should now reboot the system."
