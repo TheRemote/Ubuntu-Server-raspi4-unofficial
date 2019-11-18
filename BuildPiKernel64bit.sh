@@ -1174,7 +1174,7 @@ MountIMG "$DESKTOP_IMG"
 MountIMGPartitions "${MOUNT_IMG}"
 
 sudo chroot /mnt /bin/bash << EOF
-apt update && apt install ubuntu-desktop -y
+apt update && apt install ubuntu-desktop && apt dist-upgrade -y
 /bin/bash /etc/ubuntufixes.sh
 EOF
 
