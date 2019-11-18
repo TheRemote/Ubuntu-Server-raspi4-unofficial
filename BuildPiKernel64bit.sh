@@ -14,7 +14,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="21"
+IMAGE_VERSION="22"
 SOURCE_RELEASE="18.04.3"
 
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -541,6 +541,11 @@ sudo rm -rf ~/firmware-build/.github
 
 # % Remove unneeded firmware folders
 sudo rm -rf ~/firmware-build/LICEN*
+sudo rm -rf ~/firmware-build/WHENCE
+sudo rm -rf ~/firmware-build/check_whence.py
+sudo rm -rf ~/firmware-build/Makefile
+sudo rm -rf ~/firmware-build/copy-firmware.sh
+sudo rm -rf ~/firmware-build/PLUS.txt
 sudo rm -rf ~/firmware-build/netronome
 sudo rm -rf ~/firmware-build/amdgpu
 sudo rm -rf ~/firmware-build/radeon
@@ -667,8 +672,10 @@ sleep "$SLEEP_SHORT"
 # % Copy overlays / image / firmware
 cp -rf ~/rpi-linux/arch/arm64/boot/dts/broadcom/*.dtb ~/updates/bootfs
 cp -rf ~/rpi-linux/arch/arm64/boot/dts/overlays/*.dtb* ~/updates/bootfs/overlays
+cp -rf ~/rpi-linux/arch/arm64/boot/dts/overlays/README ~/updates/bootfs/overlays
 cp -rf ~/rpi-linux/arch/arm64/boot/dts/broadcom/*.dtb ~/updates/rootfs/usr/lib/"${KERNEL_VERSION}"/overlays
 cp -rf ~/rpi-linux/arch/arm64/boot/dts/overlays/*.dtb* ~/updates/rootfs/usr/lib/"${KERNEL_VERSION}"/broadcom
+cp -rf ~/rpi-linux/arch/arm64/boot/dts/overlays/README ~/updates/rootfs/usr/lib/"${KERNEL_VERSION}"/overlays
 
 # % Unmount and copy firmware copy to overlapping firmware folder
 while mountpoint -q /mnt/boot/firmware && ! sudo umount /mnt/boot/firmware; do
@@ -677,6 +684,7 @@ while mountpoint -q /mnt/boot/firmware && ! sudo umount /mnt/boot/firmware; do
 done
 sudo cp -rf ~/firmware/boot/*.elf /mnt/boot/firmware/
 sudo cp -rf ~/firmware/boot/*.dat /mnt/boot/firmware/
+sudo cp -rf ~/firmware/boot/*.bin /mnt/boot/firmware/
 sudo mount "/dev/mapper/${MOUNT_IMG}p1" /mnt/boot/firmware
 
 cp -rf ~/rpi-linux/arch/arm64/boot/Image ~/updates/rootfs/boot/kernel8.img

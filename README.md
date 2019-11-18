@@ -51,6 +51,16 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
+<strong>November 17th - v22 Release</strong><br>
+<ul>
+<li>Updated kernel to 4.19.83</li>
+<li>This kernel includes a number of fixes to USB and other drivers -- if you were having trouble with USB before v22 is worth a try for you!</li>
+<li>Fixed issue where lightdm service (used by xubuntu-desktop) would not load properly</li>
+<li>Added bootcode.bin to /boot/firmware to allow older Pis to boot the image (3B+ confirmed to work so far, others need testing)</li>
+<li>Added README documentation to /boot/firmware/overlays folder for documentation inside dtoverlay command</li>
+<li>Updated firmware</li>
+</ul>
+<h2>Update History</h2>
 <strong>November 8th - v21 Release</strong><br>
 <ul>
 <li>Preinstalled Desktop binary (ubuntu-desktop) now available in the releases section</li>
