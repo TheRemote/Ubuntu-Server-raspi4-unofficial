@@ -71,8 +71,13 @@ if [ -e "/etc/imgrelease" ]; then
 fi
 
 if [ "$LatestRelease" == "$CurrentRelease" ]; then
-    echo "You have release ${LatestRelease}. No updates are currently available!"
-    exit
+  echo "You have release ${LatestRelease}. No updates are currently available!"
+  echo -n "Force an update anyway? (y/n)"
+  read answer
+  if [ "$answer" == "${answer#[Yy]}" ]; then
+      echo "Update has been aborted!"
+      exit
+  fi
 fi
 
 # Update is available, confirm insatallation with user
