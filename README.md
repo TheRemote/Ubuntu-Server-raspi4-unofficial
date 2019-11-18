@@ -55,6 +55,7 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <ul>
 <li>Updated kernel to 4.19.83</li>
 <li>This kernel includes a number of fixes to USB and other drivers -- if you were having trouble with USB v22 is worth a try for you!</li>
+<li>You can now force an update in the updater even if you are at the latest version.  You can use this if you think something may have gone wrong during an update or you are troubleshooting and want to reload the firmware/kernel modules.</li>
 <li>Fixed issue where lightdm service (used by xubuntu-desktop) would not load properly</li>
 <li>Added bootcode.bin to /boot/firmware to allow older Pis to boot the image (3B+ confirmed to work so far, others need testing)</li>
 <li>Added README documentation to /boot/firmware/overlays folder for documentation inside dtoverlay command</li>
