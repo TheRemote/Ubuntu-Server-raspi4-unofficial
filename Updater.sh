@@ -24,8 +24,7 @@ if [ -f /etc/modules-load.d/cups-filters.conf ]; then
 fi
 
 # Install dependencies
-sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y
-sudo apt-get dist-upgrade -y
+sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y && sudo apt dist-upgrade -y
 
 echo "Checking for updates ..."
 
