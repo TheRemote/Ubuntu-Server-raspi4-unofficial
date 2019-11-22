@@ -58,7 +58,7 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <li>Fixed issues with video performance while in headless mode (xrdp, xvnc performance improvements)</li>
 <li>Enabled AppArmor kernel flags</li>
 <li>Added #dtparam=i2c0=on and #dtparam=i2c1=on examples to /boot/firmware/config.txt to help enable those interfaces if needed</li>
-</ui>
+</ul>
 <strong>November 17th 2019 - v22 Release</strong><br>
 <ul>
 <li>Updated kernel to 4.19.83</li>
