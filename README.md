@@ -51,7 +51,15 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
-<strong>November 17th - v22 Release</strong><br>
+<strong>November 21st 2019 - v23 Release</string><br>
+<ul>
+<li>Updated kernel to 4.19.84</li>
+<li>Fixed problem that could cause desktop v22 release to not load</li>
+<li>Fixed issues with video performance while in headless mode (xrdp, xvnc performance improvements)</li>
+<li>Enabled AppArmor kernel flags</li>
+<li>Added #dtparam=i2c0=on and #dtparam=i2c1=on examples to /boot/firmware/config.txt to help enable those interfaces if needed</li>
+</ui>
+<strong>November 17th 2019 - v22 Release</strong><br>
 <ul>
 <li>Updated kernel to 4.19.83</li>
 <li>This kernel includes a number of fixes to USB and other drivers -- if you were having trouble with USB v22 is worth a try for you!</li>
@@ -62,17 +70,17 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <li>Updated firmware</li>
 </ul>
 <h2>Update History</h2>
-<strong>November 8th - v21 Release</strong><br>
+<strong>November 8th 2019 - v21 Release</strong><br>
 <ul>
 <li>Preinstalled Desktop binary (ubuntu-desktop) now available in the releases section</li>
 <li>Netplan changes removed by popular demand -- it was causing too many issues as everyone is using the image differently</li>
 <li>Updater now removes old kernel source code automatically (no more manual cleaning of these large folders needed)</li>
 </ul>
-<strong>November 7th - v20 Release</strong><br>
+<strong>November 7th 2019 - v20 Release</strong><br>
 <ul>
 <li>Fixed bug that was causing kernel modules to not load (updating using /home/Updater.sh recommended)</li>
 </ul>
-<strong>November 6th - v19 Release</strong><br>
+<strong>November 6th 2019 - v19 Release</strong><br>
 <ul>
 <li>Fixed PulseAudio only playing sound in mono, stereo now works!</li>
 <li>Added kernel flags to optimize speed/clean up warnings/fix crashes</li>
@@ -82,7 +90,7 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <li>Fixed "spice-vdagent[2107]: Cannot access vdagent virtio channel /dev/virtio-ports/com.redhat.spice.0" error</li>
 <li>Fixed triggerhappy crash related to /lib/systemd/system/triggerhappy.socket being wrong type</li>
 </ul>
-<strong>November 3rd - v18 Release</strong><br>
+<strong>November 3rd 2019 - v18 Release</strong><br>
 <ul>
 <li>Update to kernel 4.19.81</li>
 <li>Added udev rule to allow users to use vcgencmd without sudo (thanks xlazom00)</li>

@@ -14,7 +14,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="22"
+IMAGE_VERSION="23"
 SOURCE_RELEASE="18.04.3"
 
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -480,11 +480,15 @@ echo "Creating target image ..."
 if [ -f "$TARGET_IMG" ]; then
   sudo rm -rf "$TARGET_IMG"
 fi
+if [ -f "$DESKTOP_IMG" ]; then
+  sudo rm -rf "$DESKTOP_IMG"
+fi
 cp -vf "$SOURCE_IMG" "$TARGET_IMG"
 # % Expands the target image by approximately 300MB to help us not run out of space and encounter errors
 echo "Expanding target image free space ..."
-truncate -s +709715200 "$TARGET_IMG"
+truncate -s +1009715200 "$TARGET_IMG"
 sync; sync
+
 
 # GET USERLAND
 cd ~
@@ -707,9 +711,10 @@ cp -rf ~/userland/build/arm-linux/release/vmcs_host_apps-1.0.pre-1-Linux/bin/* ~
 cp -rf ~/userland/build/arm-linux/release/vmcs_host_apps-1.0.pre-1-Linux/lib/* ~/updates/rootfs/usr/lib/aarch64-linux-gnu
 cp -rf ~/userland/build/arm-linux/release/vmcs_host_apps-1.0.pre-1-Linux/include/* ~/updates/rootfs/usr/include
 
-# % Copy kernel and gpu firmware start*.elf and fixup*.dat files
+# % Copy kernel and gpu firmware start*.elf, fixup*.dat and bootcode.bin files
 cp -rf ~/firmware/boot/*.elf ~/updates/bootfs
 cp -rf ~/firmware/boot/*.dat ~/updates/bootfs
+cp -rf ~/firmware/boot/*.bin ~/updates/bootfs
 
 cp -rf ~/rpi-linux/arch/arm64/boot/Image ~/updates/bootfs/kernel8.img
 sync; sync
@@ -746,7 +751,7 @@ disable_overscan=1
 #framebuffer_height=720
 
 # uncomment if hdmi display is not detected and composite is being output
-#hdmi_force_hotplug=1
+hdmi_force_hotplug=1
 
 # uncomment to force a specific HDMI mode (this will force VGA)
 #hdmi_group=1
@@ -764,9 +769,11 @@ disable_overscan=1
 #sdtv_mode=2
 
 # Uncomment some or all of these to enable the optional hardware interfaces
-#dtparam=i2c_arm=on
 #dtparam=spi=on
 #dtparam=i2s=on
+#dtparam=i2c_arm=on
+#dtparam=i2c1=on
+#dtparam=i2c0=on
 
 # Uncomment this to enable infrared communication.
 #dtoverlay=gpio-ir,gpio_pin=17
@@ -1128,7 +1135,7 @@ fi
 cp -vf "$TARGET_IMG" "$DESKTOP_IMG"
 # % Expands the target image by approximately 2GB to help us not run out of space and encounter errors
 echo "Expanding desktop image free space ..."
-truncate -s +3009715200 "$DESKTOP_IMG"
+truncate -s +4009715200 "$DESKTOP_IMG"
 sync; sync
 
 MountIMG "$DESKTOP_IMG"
@@ -1174,7 +1181,9 @@ MountIMG "$DESKTOP_IMG"
 MountIMGPartitions "${MOUNT_IMG}"
 
 sudo chroot /mnt /bin/bash << EOF
-apt update && apt install ubuntu-desktop && apt dist-upgrade -y
+apt update && apt install ubuntu-desktop -y
+/bin/bash /etc/ubuntufixes.sh
+apt dist-upgrade -y
 /bin/bash /etc/ubuntufixes.sh
 EOF
 
