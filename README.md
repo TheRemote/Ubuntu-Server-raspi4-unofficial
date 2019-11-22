@@ -69,7 +69,6 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <li>Added README documentation to /boot/firmware/overlays folder for documentation inside dtoverlay command</li>
 <li>Updated firmware</li>
 </ul>
-<h2>Update History</h2>
 <strong>November 8th 2019 - v21 Release</strong><br>
 <ul>
 <li>Preinstalled Desktop binary (ubuntu-desktop) now available in the releases section</li>
