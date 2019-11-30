@@ -51,6 +51,12 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <strong>To download the prebuilt image go to the "Releases" section.</strong><br>
 <br>
 <h2>Update History</h2>
+<strong>November 29th 2019 - v24 Release</string><br>
+<ul>
+<li>Updated kernel to 4.19.86</li>
+<li>Updated packages and firmware</li>
+<li>This kernel has additional USB and V3D improvements</li>
+</ul>
 <strong>November 21st 2019 - v23 Release</string><br>
 <ul>
 <li>Updated kernel to 4.19.84</li>

@@ -14,7 +14,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="23"
+IMAGE_VERSION="24"
 SOURCE_RELEASE="18.04.3"
 
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
