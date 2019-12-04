@@ -24,7 +24,7 @@ if [ -f /etc/modules-load.d/cups-filters.conf ]; then
 fi
 
 # Install dependencies
-sudo apt update && sudo apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y && sudo apt dist-upgrade -y
+sudo apt update && sudo apt install haveged libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc bison flex libssl-dev -y && sudo apt dist-upgrade -y
 
 echo "Checking for updates ..."
 
@@ -324,7 +324,7 @@ if [ -n "`which lightdm`" ]; then
     cat << EOF2 | tee /etc/X11/xorg.conf >/dev/null
 Section "Device"
 Identifier "Card0"
-Driver "fbdev"
+Driver "modesetting"
 EndSection
 EOF2
     systemctl restart lightdm

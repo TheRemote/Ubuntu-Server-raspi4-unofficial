@@ -14,7 +14,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="24"
+IMAGE_VERSION="25"
 SOURCE_RELEASE="18.04.3"
 
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -963,7 +963,7 @@ if [ -n "`which lightdm`" ]; then
     cat << EOF2 | tee /etc/X11/xorg.conf >/dev/null
 Section "Device"
 Identifier "Card0"
-Driver "fbdev"
+Driver "modesetting"
 EndSection
 EOF2
     systemctl restart lightdm
@@ -1014,7 +1014,7 @@ add-apt-repository ppa:oibaf/graphics-drivers -yn
 # % Install dependencies to build Pi modules (git build-essential bc bison flex libssl-dev device-tree-compiler)
 # % Install curl and unzip utilities
 # % Install missing libblockdev-mdraid
-apt update && apt install libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
+apt update && apt install haveged libblockdev-mdraid2 wireless-tools iw rfkill bluez libnewt0.52 whiptail lua5.1 git bc curl unzip build-essential libgmp-dev libmpfr-dev libmpc-dev libssl-dev bison flex -y && apt dist-upgrade -y
 
 # % Clean up after ourselves and clean out package cache to keep the image small
 apt autoremove -y && apt clean && apt autoclean
