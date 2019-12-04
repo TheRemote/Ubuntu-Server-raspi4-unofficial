@@ -370,5 +370,14 @@ if [ -f /etc/rc.local ]; then
   fi
 fi
 
+# Remove old /etc/X11/xorg.conf config if present
+if [ -f /etc/X11/xorg.conf ]; then
+  GrepCheck=$(cat /etc/X11/xorg.conf | grep "fbdev")
+  if [ ! -z "$GrepCheck" ]; then
+    echo "Removing old X11 xorg.conf file ..."
+    sudo rm -f /etc/X11/xorg.conf
+  fi
+fi
+
 echo "Update completed!"
 echo "You should now reboot the system."
