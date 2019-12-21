@@ -57,6 +57,13 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 
 <h2>Update History</h2>
 
+<h3>December 20th 2019 - v26 Release</h3>
+<ul>
+<li>Updated to kernel 4.19.89</li>
+<li>Power management firmware features for WiFi are now enabled (saves 55mA (~270mW) of power on Pi 4)</li>
+<li>Updated firmware</li>
+</ul>
+
 <h3>December 3rd 2019 - v25 Release</h3>
 <ul>
 <li>Fixed issue with desktop driver not loading properly (thanks tarsij!)</li>

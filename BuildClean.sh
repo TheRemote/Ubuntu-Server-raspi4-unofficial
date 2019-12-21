@@ -13,3 +13,4 @@ sudo rm -rf ~/linux-*
 sudo rm -rf ~/updates
 sudo rm -rf ~/updates.tar.xz 
 sudo rm -rf ~/ubuntu*.img *+raspi4.img.xz
+sudo rm -rf *.img

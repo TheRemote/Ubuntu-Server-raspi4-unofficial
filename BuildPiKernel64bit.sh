@@ -14,7 +14,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="25"
+IMAGE_VERSION="26"
 SOURCE_RELEASE="18.04.3"
 
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -1246,4 +1246,3 @@ sudo rm -rf ~/updates.tar.xz
 tar -cf - updates/ | xz -9e -c --threads=0 - > ~/updates.tar.xz
 
 echo "Build completed"
-
