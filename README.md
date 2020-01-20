@@ -57,6 +57,13 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 
 <h2>Update History</h2>
 
+<h3>January 20th 2019 - v27 Release</h3>
+<ul>
+<li>Updated to kernel 4.19.97</li>
+<li>Updated to Ubuntu 19.10.1 for base firmware instead of 19.10</li>
+<li>Updated Raspbian-sourced firmware</li>
+</ul>
+
 <h3>December 20th 2019 - v26 Release</h3>
 <ul>
 <li>Updated to kernel 4.19.89</li>

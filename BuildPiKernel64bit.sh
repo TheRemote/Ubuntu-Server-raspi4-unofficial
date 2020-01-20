@@ -14,7 +14,7 @@
 
 # CONFIGURATION
 
-IMAGE_VERSION="26"
+IMAGE_VERSION="27"
 SOURCE_RELEASE="18.04.3"
 
 TARGET_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi4.img"
@@ -25,8 +25,8 @@ SOURCE_IMG="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img"
 SOURCE_IMGXZ="ubuntu-18.04.3-preinstalled-server-arm64+raspi3.img.xz"
 RASPBIAN_IMG="2019-09-26-raspbian-buster-lite.img"
 RASPBIAN_IMGZIP="2019-09-26-raspbian-buster-lite.img.zip"
-UBUNTU_IMG="ubuntu-19.10-preinstalled-server-arm64+raspi3.img"
-UBUNTU_IMGXZ="ubuntu-19.10-preinstalled-server-arm64+raspi3.img.xz"
+UBUNTU_IMG="ubuntu-19.10.1-preinstalled-server-arm64+raspi3.img"
+UBUNTU_IMGXZ="ubuntu-19.10.1-preinstalled-server-arm64+raspi3.img.xz"
 
 export SLEEP_SHORT="0.1"
 export SLEEP_LONG="1"
@@ -421,8 +421,8 @@ fi
 
 # % Get Ubuntu source image 
 if [ ! -f "$UBUNTU_IMGXZ" ]; then
-  echo "Retrieving Ubuntu 19.10 source image ..."
-  wget http://cdimage.ubuntu.com/releases/eoan/release/ubuntu-19.10-preinstalled-server-arm64+raspi3.img.xz
+  echo "Retrieving Ubuntu 19.10.1 source image ..."
+  wget http://cdimage.ubuntu.com/ubuntu/releases/19.10.1/release/ubuntu-19.10.1-preinstalled-server-arm64+raspi3.img.xz
 fi
 
 if [ ! -f "$RASPBIAN_IMGZIP" ]; then
@@ -432,7 +432,7 @@ fi
 
 # % Extract and compact our source image from the xz if the source image isn't present
 if [ ! -f "$UBUNTU_IMG" ]; then
-  echo "Extracting Ubuntu 19.10 source image ..."
+  echo "Extracting Ubuntu 19.10.1 source image ..."
   xzcat --threads=0 "$UBUNTU_IMGXZ" > "$UBUNTU_IMG"
   MountIMG "$UBUNTU_IMG"
   MountIMGPartitions "${MOUNT_IMG}"
