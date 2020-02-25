@@ -379,5 +379,73 @@ if [ -f /etc/X11/xorg.conf ]; then
   fi
 fi
 
+if [ ! -f /boot/firmware/network-config ]; then
+# Create network-config
+cat << EOF | tee ~/updates/bootfs/network-config >/dev/null
+# This file contains a netplan-compatible configuration which cloud-init
+# will apply on first-boot. Please refer to the cloud-init documentation and
+# the netplan reference for full details:
+#
+# https://cloudinit.readthedocs.io/
+# https://netplan.io/reference
+#
+# Some additional examples are commented out below
+
+version: 2
+ethernets:
+  eth0:
+    dhcp4: true
+    optional: true
+#wifis:
+#  wlan0:
+#    dhcp4: true
+#    optional: true
+#    access-points:
+#      homessid:
+#        password: "S3kr1t"
+EOF
+fi
+
+# Create meta-data
+if [ ! -f /boot/firmware/meta-data ]; then
+cat << EOF | tee ~/updates/bootfs/meta-data >/dev/null
+# This is the meta-data configuration file for cloud-init. Typically this just
+# contains the instance_id. Please refer to the cloud-init documentation for
+# more information:
+#
+# https://cloudinit.readthedocs.io/
+
+instance_id: cloud-image
+EOF
+fi
+
+# Create user-data
+if [ ! -f /boot/firmware/user-data ]; then
+cat << EOF | tee ~/updates/bootfs/user-data >/dev/null
+#cloud-config
+
+# This is the user-data configuration file for cloud-init. By default this sets
+# up an initial user called "ubuntu" with password "ubuntu", which must be
+# changed at first login. However, many additional actions can be initiated on
+# first boot from this file. The cloud-init documentation has more details:
+#
+# https://cloudinit.readthedocs.io/
+#
+# Some additional examples are provided in comments below the default
+# configuration.
+
+# Enable password authentication with the SSH daemon
+ssh_pwauth: true
+
+# On first boot, set the (default) ubuntu user's password to "ubuntu" and
+# expire user passwords
+chpasswd:
+  expire: true
+  list:
+  - ubuntu:ubuntu
+
+EOF
+fi
+
 echo "Update completed!"
 echo "You should now reboot the system."

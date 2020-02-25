@@ -57,6 +57,15 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 
 <h2>Update History</h2>
 
+<h3>February 24th 2019 - v28 Release</h3>
+<ul>
+<li>Updated source image to Ubuntu 18.04.4</li>
+<li>Added xubuntu-desktop precompiled image</li>
+<li>Updated to kernel 4.19.105 (addresses critical vulnerability)</li>
+<li>Fixed flash-kernel package missing dtb files</li>
+<li>Fixed issue that could cause ssh keys to not be created properly</li>
+</ul>
+
 <h3>January 20th 2019 - v27 Release</h3>
 <ul>
 <li>Updated to kernel 4.19.97</li>
