@@ -17,6 +17,9 @@ sudo add-apt-repository ppa:ubuntu-x-swat/updates -ynr
 sudo add-apt-repository ppa:ubuntu-raspi2/ppa -ynr
 sudo add-apt-repository ppa:oibaf/graphics-drivers -yn
 
+# Fix flash-kernel
+sudo apt-mark hold flash-kernel
+
 # Fix cups
 if [ -f /etc/modules-load.d/cups-filters.conf ]; then
   rm -f /etc/modules-load.d/cups-filters.conf
