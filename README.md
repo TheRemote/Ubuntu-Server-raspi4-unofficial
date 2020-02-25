@@ -1,10 +1,7 @@
 <h2>Overview</h2>
-This is a Raspberry Pi 4 compatible Ubuntu 18.04.3 preinstalled desktop/server for the new (and currently unsupported officially in the 18.04 LTS series) Raspberry Pi 4.<br>
+This is a Raspberry Pi 4 compatible Ubuntu 18.04.4 preinstalled desktop/server for the new (and currently unsupported officially in the 18.04 LTS series) Raspberry Pi 4.<br>
 <br>
 For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-server-desktop-18-04-3-image-unofficial/ including a walkthrough and lots of comments / discussion.<br>
-<br>
-Note: Ubuntu has released their first official distribution that supports the Raspberry Pi 4.  The bad news it it's only for the short term Ubuntu 19.10 Eoan Ermine release and *not* 
-for the 18.04 LTS release that will still be supported until a whopping April 2023 still.  This means that for now this project will live on supporting the 18.04 LTS branch.<br>
 <br>
 The early official 19.10 release seems to be having a lot of issues particularly with USB devices (I couldn't get my USB devices to connect to it either during initial testing).  I also saw a lot of warnings in the log files especially with a full desktop installed.  I personally am not concerned about these early hardware issues and I expect those to improve quickly but be advised just because it's an official release doesn't mean it's rock solid stable yet!<br>
 <br>
@@ -31,14 +28,12 @@ This unofficial Ubuntu image is a compilation of all the latest knowledge/firmwa
 <h2>Getting Updates</h2>
 First and foremost all of your updates will be coming from Ubuntu directly in apt as it would with any official image.  The only things set on package hold (using apt-mark hold flash-kernel linux-raspi2 linux-image-raspi2 linux-headers-raspi2 linux-firmware-raspi2) to prevent them from overwriting the firmware already on the image.  <br>
 <br>
-If you wish, you may apt-mark unhold those same packages and you will be 100% official Ubuntu.  The firmware is old right now so you will probably have issues, but presumably at some point the firmware will be backported for 18.04.3 and they'll be safe to use on the Pi 4 but it may take some time.<br>
+If you wish, you may apt-mark unhold those same packages and you will be 100% official Ubuntu.  The firmware is old right now so you will probably have issues, but presumably at some point the firmware will be backported for 18.04.4 and they'll be safe to use on the Pi 4 but it may take some time.<br>
 <br>
 Updates to the firmware and fixes to common problems will be provided as long as there is interest.<br>
 <br>
-I expect at some point Ubuntu will backport 18.04.3 back to LTS as it is their long term release but only they know how long tat might take!  In the mean time I will do some short term updates of firmware/fixes/kernels/etc. and when Ubuntu's repositories get working firmware you will switch back to their firmware.<br>
-<br>
 I have also included an updater that will give you the latest kernel/firmware/modules/fixes that are included in each release.
-If Ubuntu's 18.04.3 update servers get working firmware for the Raspberry Pi 4 I will change the update script to remove the apt-mark holds on the Raspberry Pi firmware package in apt and close the project down (leaving this here for people to learn from to hack an unsupported device into their own distros, or until I do it again on the next Pi release!)<br>
+If Ubuntu's 18.04.4 update servers get working firmware for the Raspberry Pi 4 I will change the update script to remove the apt-mark holds on the Raspberry Pi firmware package in apt and close the project down (leaving this here for people to learn from to hack an unsupported device into their own distros, or until I do it again on the next Pi release!)<br>
 <br>
 
 <h2>Building Image Yourself</h2>
