@@ -259,3 +259,16 @@ set_kernel_config CONFIG_SND_PORTMAN2X4 n
 set_kernel_config CONFIG_USB_USS720 n
 set_kernel_config CONFIG_USB_SERIAL_MOS7715_PARPORT n
 set_kernel_config CONFIG_PANEL n
+
+# GPIO
+set_kernel_config CONFIG_GPIO_SYSCON n
+set_kernel_config CONFIG_SYSCON_REBOOT_MODE n
+
+# Broadcom
+set_kernel_config CONFIG_POWER_RESET_BRCMSTB y
+
+# Drivers
+set_kernel_config CONFIG_REGULATOR_ANATOP n
+set_kernel_config CONFIG_DRM_PANEL_ARM_VERSATILE m
+set_kernel_config CONFIG_LEDS_SYSCON n
+set_kernel_config CONFIG_MUX_MMIO n
