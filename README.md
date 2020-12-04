@@ -7,6 +7,8 @@ The early official 19.10 release seems to be having a lot of issues particularly
 <br>
 This unofficial Ubuntu image is a compilation of all the latest knowledge/firmware/fixes for running a 64 bit operating system on the new Raspberry Pi 4.  If you find problems report it in the issues section and I and others will assist!<br>
 
+If you are looking to USB boot Ubuntu 20.04 / 20.10 I have released a tool to assist with creating USB bootable Ubuntu images.  Check it out at https://jamesachambers.com/raspberry-pi-4-ubuntu-20-04-usb-mass-storage-boot-guide/
+
 <h2>Highlights</h2>
 <ul>
     <li>Fully 64-bit kernel and userspace environment</li>
@@ -51,6 +53,13 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <br>
 
 <h2>Update History</h2>
+
+<h3>December 4th 2020 - BootFix.sh Ubuntu 20.04 / 20.10 USB Boot Image Fixer Release</h3>
+<ul>
+    <li>Released BootFix.sh script that fixes an Ubuntu image created by the Raspberry Pi Imager Tool</li>
+    <li>Compatible with Ubuntu 20.04 / 20.10 versions / supports both 32 bit and 64 bit and desktop and server variants</li>
+    <li>See detailed guide at https://jamesachambers.com/raspberry-pi-4-ubuntu-20-04-usb-mass-storage-boot-guide/</li>
+</ul>
 
 <h3>February 24th 2019 - v28 Release</h3>
 <ul>
