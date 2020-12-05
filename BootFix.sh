@@ -82,7 +82,7 @@ EOF
 
 # Create script to automatically decompress kernel (source: https://www.raspberrypi.org/forums/viewtopic.php?t=278791)
 echo "Creating script to automatically decompress kernel..."
-cat <<EOF | sudo tee "$mntBoot/auto_decompress_kernel">/dev/null
+cat << \EOF | sudo tee "$mntBoot/auto_decompress_kernel">/dev/null
 #!/bin/bash -e
 # auto_decompress_kernel script
 BTPATH=/boot/firmware
