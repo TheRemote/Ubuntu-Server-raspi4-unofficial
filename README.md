@@ -6,9 +6,9 @@ For more information visit https://jamesachambers.com/raspberry-pi-4-ubuntu-serv
 The early official 19.10 release seems to be having a lot of issues particularly with USB devices (I couldn't get my USB devices to connect to it either during initial testing).  I also saw a lot of warnings in the log files especially with a full desktop installed.  I personally am not concerned about these early hardware issues and I expect those to improve quickly but be advised just because it's an official release doesn't mean it's rock solid stable yet!<br>
 <br>
 This unofficial Ubuntu image is a compilation of all the latest knowledge/firmware/fixes for running a 64 bit operating system on the new Raspberry Pi 4.  If you find problems report it in the issues section and I and others will assist!<br>
-
-If you are looking to USB boot Ubuntu 20.04 / 20.10 I have released a tool to assist with creating USB bootable Ubuntu images.  Check it out at https://jamesachambers.com/raspberry-pi-4-ubuntu-20-04-usb-mass-storage-boot-guide/
-
+<br>
+If you are looking to USB boot Ubuntu 20.04 / 20.10 I have released a tool to assist with creating USB bootable Ubuntu images.  Check it out at https://jamesachambers.com/raspberry-pi-4-ubuntu-20-04-usb-mass-storage-boot-guide/<br>
+<br>
 <h2>Highlights</h2>
 <ul>
     <li>Fully 64-bit kernel and userspace environment</li>
