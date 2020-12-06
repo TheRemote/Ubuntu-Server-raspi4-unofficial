@@ -54,6 +54,12 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 
 <h2>Update History</h2>
 
+<h3>December 5th 2020 - BootFix.sh and README fixes</h3>
+<ul>
+    <li>Fixed unescaped EOF in BootFix.sh</li>
+    <li>Fixed wrong dates in README (thanks clodnut, <a href="https://github.com/TheRemote/Ubuntu-Server-raspi4-unofficial/issues/116">issue #116</a>)</li>
+</ul>
+
 <h3>December 4th 2020 - BootFix.sh Ubuntu 20.04 / 20.10 USB Boot Image Fixer Release</h3>
 <ul>
     <li>Released BootFix.sh script that fixes an Ubuntu image created by the Raspberry Pi Imager Tool</li>
@@ -61,7 +67,7 @@ If you come across a problem definitely open a GitHub issue or drop by the james
     <li>See detailed guide at https://jamesachambers.com/raspberry-pi-4-ubuntu-20-04-usb-mass-storage-boot-guide/</li>
 </ul>
 
-<h3>February 24th 2019 - v28 Release</h3>
+<h3>February 24th 2020 - v28 Release</h3>
 <ul>
 <li>Updated source image to Ubuntu 18.04.4</li>
 <li>Added xubuntu-desktop precompiled images</li>
@@ -70,7 +76,7 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 <li>Fixed issue that could cause ssh keys to not be created properly</li>
 </ul>
 
-<h3>January 20th 2019 - v27 Release</h3>
+<h3>January 20th 2020 - v27 Release</h3>
 <ul>
 <li>Updated to kernel 4.19.97</li>
 <li>Updated to Ubuntu 19.10.1 for base firmware instead of 19.10</li>
