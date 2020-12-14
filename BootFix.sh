@@ -9,6 +9,11 @@
 # Mount writable partition with sudo mount /dev/sda2 /mnt/writable
 # Now you are ready to run this script to update the partition for Raspberry Pi booting
 
+# Safety check, check for /boot directory and /usr/bin/raspinfo
+if [ ! -d /boot ] || [ ! -e /usr/bin/raspi-config ] ; then
+    echo "/boot directory not found.  This script requires Raspbian to run as a source for updated firmware.  Are you on an up to date Raspbian installation?"
+fi
+
 # First find the "writable" root filesystem mount
 if [ -d /mnt/writable ] && [ -e /mnt/writable/usr/lib/u-boot/rpi_4/u-boot.bin ]; then
     mntWritable='/mnt/writable'

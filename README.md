@@ -54,6 +54,11 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 
 <h2>Update History</h2>
 
+<h3>December 13th 2020 - BootFix.sh and README fixes</h3>
+<ul>
+    <li>Added safety check for BootFix.sh to make sure it's on Raspbian as it uses Raspbian's /boot folder as a source to patch Ubuntu 20.04 / 20.10 to be able to USB boot</li>
+</ul>
+
 <h3>December 5th 2020 - BootFix.sh and README fixes</h3>
 <ul>
     <li>Fixed unescaped EOF in BootFix.sh</li>
