@@ -40,7 +40,7 @@ if [ -d /media/*/writable ]; then
 fi
 
 # Find the "writable" root filesystem mount
-if [ -d /mnt/writable ] && [ -e /mnt/writable/usr/lib/u-boot/rpi_4/u-boot.bin ] ; then
+if [ -d /mnt/writable ] && [ -d /mnt/writable/usr/lib/u-boot ] ; then
     mntWritable='/mnt/writable'
 else
     echo "The partition 'writable' was not found in /mnt/writable.  Make sure you have mounted your USB mass storage device (ex: sudo mount /dev/sda2 /mnt/writable)."

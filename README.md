@@ -56,9 +56,11 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 
 <h3>December 25th 2020 - BootFix.sh Fixes / Safety Checks</h3>
 <ul>
+    <li>Made error messages more helpful</li>
     <li>Added -q (quiet) and -f (force) to zcat command to tell it to proceed if kernel is not in gzip format which can vary between 20.04 and 20.10</li>
     <li>Added safety check for BootFix.sh to make sure it's being ran as sudo</li>
     <li>Added safety check for BootFix.sh to check for system-boot and writable automounts</li>
+    <li>Fixed path issue that could cause safety check to fail when creating a 32 bit bootable Ubuntu</li>
 </ul>
 
 <h3>December 13th 2020 - BootFix.sh and README fixes</h3>
