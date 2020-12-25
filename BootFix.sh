@@ -10,15 +10,40 @@
 # Now you are ready to run this script to update the partition for Raspberry Pi booting
 
 # Safety check, check for /boot directory and /usr/bin/raspinfo
-if [ ! -d /boot ] || [ ! -e /usr/bin/raspi-config ] ; then
-    echo "/boot directory not found.  This script requires Raspbian to run as a source for updated firmware.  Are you on an up to date Raspbian installation?"
+if [ ! -d /boot ]; then
+    echo "Safety check:  /boot directory not found.  This script requires Raspbian to run as a source for updated firmware."
+    exit 1
 fi
 
-# First find the "writable" root filesystem mount
-if [ -d /mnt/writable ] && [ -e /mnt/writable/usr/lib/u-boot/rpi_4/u-boot.bin ]; then
+# Safety check, check for raspi-config
+if [ ! -d /usr/lib/raspi-config ]; then
+    echo "Safety check:  /usr/lib/raspi-config directory not found.  This script requires Raspbian to run as a source for updated firmware."
+    exit 1
+fi
+
+# Safety check, run as sudo
+if [ $(id -u) != 0 ]; then
+   echo "Safety check:  This script is meant to be ran as root or sudo.  Please run using sudo ./BootFix.sh.  Exiting..."
+   exit 1
+fi
+
+# Safety check -- check for system-boot automount
+if [ -d /media/*/system-boot ]; then
+   echo "Safety check:  automount detected at /media/*/system-boot.  Please unmount the automount in File Explorer or with sudo umount /media/$LOGNAME/system-boot."
+   exit 1
+fi
+
+# Safety check -- check for writable automount
+if [ -d /media/*/writable ]; then
+   echo "Safety check:  automount detected at /media/*/writable.  Please unmount the automount in File Explorer or with sudo umount /media/$LOGNAME/system-boot."
+   exit 1
+fi
+
+# Find the "writable" root filesystem mount
+if [ -d /mnt/writable ] && [ -e /mnt/writable/usr/lib/u-boot/rpi_4/u-boot.bin ] ; then
     mntWritable='/mnt/writable'
 else
-    echo "The partition 'writable' was not found in /mnt/writable.  Make sure you have mounted your USB mass storage device."
+    echo "The partition 'writable' was not found in /mnt/writable.  Make sure you have mounted your USB mass storage device (ex: sudo mount /dev/sda2 /mnt/writable)."
     exit 1
 fi
 echo "Found writable partition at $mntWritable"
@@ -27,14 +52,14 @@ echo "Found writable partition at $mntWritable"
 if [ -d /mnt/boot ] && [ -e /mnt/boot/vmlinuz ]; then
     mntBoot='/mnt/boot'
 else
-    echo "The 'boot' partition was not found in /mnt/boot.  Make sure you have mounted your USB mass storage device."
+    echo "The 'boot' partition was not found in /mnt/boot.  Make sure you have mounted your USB mass storage device (ex: sudo mount /dev/sda1 /mnt/boot)."
     exit 1
 fi
 echo "Found boot partition at $mntBoot"
 
 # Decompress the kernel
 echo "Decompressing kernel from vmlinuz to vmlinux..."
-zcat "$mntBoot/vmlinuz" 2>&1 > "$mntBoot/vmlinux"
+zcat -qf "$mntBoot/vmlinuz" > "$mntBoot/vmlinux"
 echo "Kernel decompressed"
 
 # Update config.txt with correct parameters
@@ -112,7 +137,7 @@ else
 fi
 # Decompress the new kernel
 echo "Decompressing kernel: "$CKPATH".............."
-zcat $CKPATH > $DKPATH
+zcat -qf $CKPATH > $DKPATH
 if [ ! $? == 0 ]; then
    echo -e "\e[31mKERNEL FAILED TO DECOMPRESS!\e[0m"
    exit 1
