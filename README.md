@@ -56,7 +56,9 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 
 <h3>December 25th 2020 - BootFix.sh Fixes / Safety Checks</h3>
 <ul>
+    <li>Changed script to use git to update firmware from GitHub instead of Raspbian's boot folder (much more reliable)</li>
     <li>Made error messages more helpful</li>
+    <li>Fixed support for 32 bit images</li>
     <li>Added -q (quiet) and -f (force) to zcat command to tell it to proceed if kernel is not in gzip format which can vary between 20.04 and 20.10</li>
     <li>Added safety check for BootFix.sh to make sure it's being ran as sudo</li>
     <li>Added safety check for BootFix.sh to check for system-boot and writable automounts</li>

@@ -10,14 +10,8 @@
 # Now you are ready to run this script to update the partition for Raspberry Pi booting
 
 # Safety check, check for /boot directory and /usr/bin/raspinfo
-if [ ! -d /boot ]; then
-    echo "Safety check:  /boot directory not found.  This script requires Raspbian to run as a source for updated firmware."
-    exit 1
-fi
-
-# Safety check, check for raspi-config
-if [ ! -d /usr/lib/raspi-config ]; then
-    echo "Safety check:  /usr/lib/raspi-config directory not found.  This script requires Raspbian to run as a source for updated firmware."
+if ! command -v git ; then
+    echo "Safety check:  git was not found.  Please install using sudo apt install git.  Exiting..."
     exit 1
 fi
 
@@ -57,10 +51,33 @@ else
 fi
 echo "Found boot partition at $mntBoot"
 
+# Clone firmware repository
+if [ ! -d rpi-firmware ]; then
+   git clone https://github.com/Hexxeh/rpi-firmware.git --depth 1
+else
+   cd rpi-firmware
+   git pull
+   cd ..
+fi
+
+# Update firmware
+if [ -d rpi-firmware ]; then
+   sudo cp rpi-firmware/*.dat "$mntBoot"
+   sudo cp rpi-firmware/*.elf "$mntBoot"
+   sudo cp rpi-firmware/*.bin "$mntBoot"
+   sudo cp rpi-firmware/*.dtb "$mntBoot"
+else
+    echo "Failed to clone rpi-firmware repository with git.  Are you connected to the internet?  Exiting..."
+    exit 1
+fi
+
 # Decompress the kernel
 echo "Decompressing kernel from vmlinuz to vmlinux..."
 zcat -qf "$mntBoot/vmlinuz" > "$mntBoot/vmlinux"
 echo "Kernel decompressed"
+
+# Check if 32 bit or 64 bit and modify config.txt
+if cat "$mntBoot/config.txt" | grep -q "arm_64bit=1"; then
 
 # Update config.txt with correct parameters
 echo "Updating config.txt with correct parameters..."
@@ -109,6 +126,60 @@ include syscfg.txt
 include usercfg.txt
 
 EOF
+
+# End 64 bit
+else
+
+# Update config.txt with correct parameters
+echo "Updating config.txt with correct parameters..."
+cat <<EOF | sudo tee "$mntBoot/config.txt">/dev/null
+# Please DO NOT modify this file; if you need to modify the boot config, the
+# usercfg.txt file is the place to include user changes. Please refer to
+# the README file for a description of the various configuration files on
+# the boot partition.
+
+# The unusual ordering below is deliberate; older firmwares (in particular the
+# version initially shipped with bionic) don't understand the conditional
+# [sections] below and simply ignore them. The Pi4 doesn't boot at all with
+# firmwares this old so it's safe to place at the top. Of the Pi2 and Pi3, the
+# Pi3 uboot happens to work happily on the Pi2, so it needs to go at the bottom
+# to support old firmwares.
+
+[pi4]
+max_framebuffers=2
+dtoverlay=vc4-fkms-v3d
+boot_delay
+kernel=vmlinux
+initramfs initrd.img followkernel
+
+[pi2]
+boot_delay
+kernel=vmlinux
+initramfs initrd.img followkernel
+
+[pi3]
+boot_delay
+kernel=vmlinux
+initramfs initrd.img followkernel
+
+[all]
+device_tree_address=0x03000000
+
+# The following settings are defaults expected to be overridden by the
+# included configuration. The only reason they are included is, again, to
+# support old firmwares which don't understand the include command.
+
+enable_uart=1
+cmdline=cmdline.txt
+
+include syscfg.txt
+include usercfg.txt
+
+EOF
+
+# End 32 bit
+fi
+
 
 # Create script to automatically decompress kernel (source: https://www.raspberrypi.org/forums/viewtopic.php?t=278791)
 echo "Creating script to automatically decompress kernel..."
