@@ -66,8 +66,10 @@ if [ -d rpi-firmware ]; then
    sudo cp rpi-firmware/*.elf "$mntBoot"
    sudo cp rpi-firmware/*.bin "$mntBoot"
    sudo cp rpi-firmware/*.dtb "$mntBoot"
+   rm -rf rpi-firmware
 else
     echo "Failed to clone rpi-firmware repository with git.  Are you connected to the internet?  Exiting..."
+    rm -rf rpi-firmware
     exit 1
 fi
 
