@@ -70,6 +70,7 @@ if [ -d rpi-firmware ]; then
       if [ -d "$mntWritable/lib/X11" ]; then
          if cat "$mntBoot/config.txt" | grep -q "arm_64bit=1"; then
             # Ubuntu server 20.04.1 64 bit- skip copying DTBs
+            Write-Host "Skipping copying DTBs for Ubuntu Server 20.04.1 64 bit"
          else
             sudo cp rpi-firmware/*.dtb "$mntBoot"
          fi
@@ -94,8 +95,9 @@ echo "Kernel decompressed"
 # Check if 32 bit or 64 bit and modify config.txt
 if cat "$mntBoot/config.txt" | grep -q "arm_64bit=1"; then
 
-   # Update config.txt with correct parameters
-   echo "Updating config.txt with correct parameters..."
+# Update config.txt with correct parameters
+echo "Updating config.txt with correct parameters..."
+
 cat <<EOF | sudo tee "$mntBoot/config.txt">/dev/null
 # Please DO NOT modify this file; if you need to modify the boot config, the
 # usercfg.txt file is the place to include user changes. Please refer to
@@ -145,8 +147,9 @@ EOF
 # End 64 bit
 else
 
-   # Update config.txt with correct parameters
-   echo "Updating config.txt with correct parameters..."
+# Update config.txt with correct parameters
+echo "Updating config.txt with correct parameters..."
+
 cat <<EOF | sudo tee "$mntBoot/config.txt">/dev/null
 # Please DO NOT modify this file; if you need to modify the boot config, the
 # usercfg.txt file is the place to include user changes. Please refer to
