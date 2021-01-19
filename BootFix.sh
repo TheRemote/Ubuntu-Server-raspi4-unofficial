@@ -10,7 +10,7 @@
 # Now you are ready to run this script to update the partition for Raspberry Pi booting
 
 # Safety check, check for /boot directory and /usr/bin/raspinfo
-if ! command -v git ; then
+if ! command -v git >/dev/null ; then
     echo "Safety check:  git was not found.  Please install using sudo apt install git.  Exiting..."
     exit 1
 fi
@@ -65,7 +65,20 @@ if [ -d rpi-firmware ]; then
    sudo cp rpi-firmware/*.dat "$mntBoot"
    sudo cp rpi-firmware/*.elf "$mntBoot"
    sudo cp rpi-firmware/*.bin "$mntBoot"
-   sudo cp rpi-firmware/*.dtb "$mntBoot"
+   # Update DTBs if not Ubuntu Server 20.04
+   if cat "$mntWritable/etc/os-release" | grep -q "Ubuntu 20.04.1"; then
+      if [ -d "$mntWritable/lib/X11" ]; then
+         if cat "$mntBoot/config.txt" | grep -q "arm_64bit=1"; then
+            # Ubuntu server 20.04.1 64 bit- skip copying DTBs
+         else
+            sudo cp rpi-firmware/*.dtb "$mntBoot"
+         fi
+      else
+         sudo cp rpi-firmware/*.dtb "$mntBoot"
+      fi
+   else
+      sudo cp rpi-firmware/*.dtb "$mntBoot"
+   fi
    rm -rf rpi-firmware
 else
     echo "Failed to clone rpi-firmware repository with git.  Are you connected to the internet?  Exiting..."
@@ -81,8 +94,8 @@ echo "Kernel decompressed"
 # Check if 32 bit or 64 bit and modify config.txt
 if cat "$mntBoot/config.txt" | grep -q "arm_64bit=1"; then
 
-# Update config.txt with correct parameters
-echo "Updating config.txt with correct parameters..."
+   # Update config.txt with correct parameters
+   echo "Updating config.txt with correct parameters..."
 cat <<EOF | sudo tee "$mntBoot/config.txt">/dev/null
 # Please DO NOT modify this file; if you need to modify the boot config, the
 # usercfg.txt file is the place to include user changes. Please refer to
@@ -132,8 +145,8 @@ EOF
 # End 64 bit
 else
 
-# Update config.txt with correct parameters
-echo "Updating config.txt with correct parameters..."
+   # Update config.txt with correct parameters
+   echo "Updating config.txt with correct parameters..."
 cat <<EOF | sudo tee "$mntBoot/config.txt">/dev/null
 # Please DO NOT modify this file; if you need to modify the boot config, the
 # usercfg.txt file is the place to include user changes. Please refer to
