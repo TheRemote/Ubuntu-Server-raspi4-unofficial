@@ -61,16 +61,17 @@ else
 fi
 
 # Update firmware
+echo "Updating firmware..."
 if [ -d rpi-firmware ]; then
    sudo cp rpi-firmware/*.dat "$mntBoot"
    sudo cp rpi-firmware/*.elf "$mntBoot"
    sudo cp rpi-firmware/*.bin "$mntBoot"
    # Update DTBs if not Ubuntu Server 20.04
    if cat "$mntWritable/etc/os-release" | grep -q "Ubuntu 20.04.1"; then
-      if [ -d "$mntWritable/lib/X11" ]; then
+      if [ ! -d "$mntWritable/lib/X11" ]; then
          if cat "$mntBoot/config.txt" | grep -q "arm_64bit=1"; then
             # Ubuntu server 20.04.1 64 bit- skip copying DTBs
-            Write-Host "Skipping copying DTBs for Ubuntu Server 20.04.1 64 bit"
+            echo "Skipping copying DTBs for Ubuntu Server 20.04.1 64 bit"
          else
             sudo cp rpi-firmware/*.dtb "$mntBoot"
          fi
