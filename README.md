@@ -54,6 +54,11 @@ If you come across a problem definitely open a GitHub issue or drop by the james
 
 <h2>Update History</h2>
 
+<h3>February 16th 2021</h3>
+<ul>
+    <li>Fixed BootFix.sh to work with Ubuntu 20.04.2</li>
+</ul>
+
 <h3>December 25th 2020 - BootFix.sh Fixes / Safety Checks</h3>
 <ul>
     <li>Changed script to use git to update firmware from GitHub instead of Raspbian's boot folder (much more reliable)</li>

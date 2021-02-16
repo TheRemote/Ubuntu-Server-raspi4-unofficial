@@ -51,42 +51,43 @@ else
 fi
 echo "Found boot partition at $mntBoot"
 
+# Commented out -- not necessary after 20.04.2 and causes issues
 # Clone firmware repository
-if [ ! -d rpi-firmware ]; then
-   git clone https://github.com/Hexxeh/rpi-firmware.git --depth 1
-else
-   cd rpi-firmware
-   git pull
-   cd ..
-fi
+#if [ ! -d rpi-firmware ]; then
+#   git clone https://github.com/Hexxeh/rpi-firmware.git --depth 1
+#else
+#   cd rpi-firmware
+#   git pull
+#   cd ..
+#fi
 
 # Update firmware
-echo "Updating firmware..."
-if [ -d rpi-firmware ]; then
-   sudo cp rpi-firmware/*.dat "$mntBoot"
-   sudo cp rpi-firmware/*.elf "$mntBoot"
-   sudo cp rpi-firmware/*.bin "$mntBoot"
-   # Update DTBs if not Ubuntu Server 20.04
-   if cat "$mntWritable/etc/os-release" | grep -q "Ubuntu 20.04.1"; then
-      if [ ! -d "$mntWritable/lib/X11" ]; then
-         if cat "$mntBoot/config.txt" | grep -q "arm_64bit=1"; then
-            # Ubuntu server 20.04.1 64 bit- skip copying DTBs
-            echo "Skipping copying DTBs for Ubuntu Server 20.04.1 64 bit"
-         else
-            sudo cp rpi-firmware/*.dtb "$mntBoot"
-         fi
-      else
-         sudo cp rpi-firmware/*.dtb "$mntBoot"
-      fi
-   else
-      sudo cp rpi-firmware/*.dtb "$mntBoot"
-   fi
-   rm -rf rpi-firmware
-else
-    echo "Failed to clone rpi-firmware repository with git.  Are you connected to the internet?  Exiting..."
-    rm -rf rpi-firmware
-    exit 1
-fi
+#echo "Updating firmware..."
+#if [ -d rpi-firmware ]; then
+#   sudo cp rpi-firmware/*.dat "$mntBoot"
+#   sudo cp rpi-firmware/*.elf "$mntBoot"
+#   sudo cp rpi-firmware/*.bin "$mntBoot"
+#   # Update DTBs if not Ubuntu Server 20.04
+#   if cat "$mntWritable/etc/os-release" | grep -q "Ubuntu 20.04.1"; then
+#      if [ ! -d "$mntWritable/lib/X11" ]; then
+#         if cat "$mntBoot/config.txt" | grep -q "arm_64bit=1"; then
+#            # Ubuntu server 20.04.1 64 bit- skip copying DTBs
+#            echo "Skipping copying DTBs for Ubuntu Server 20.04.1 64 bit"
+#         else
+#            sudo cp rpi-firmware/*.dtb "$mntBoot"
+#         fi
+#      else
+#         sudo cp rpi-firmware/*.dtb "$mntBoot"
+#      fi
+#   else
+#      sudo cp rpi-firmware/*.dtb "$mntBoot"
+#   fi
+#   rm -rf rpi-firmware
+#else
+#    echo "Failed to clone rpi-firmware repository with git.  Are you connected to the internet?  Exiting..."
+#    rm -rf rpi-firmware
+#    exit 1
+#fi
 
 # Decompress the kernel
 echo "Decompressing kernel from vmlinuz to vmlinux..."
