@@ -10,9 +10,8 @@
 # Now you are ready to run this script to update the partition for Raspberry Pi booting
 
 # Safety check, check for /boot directory and /usr/bin/raspinfo
-if ! command -v git >/dev/null ; then
-    echo "Safety check:  git was not found.  Please install using sudo apt install git.  Exiting..."
-    exit 1
+if [ ! -d /boot ] || [ ! -e /usr/bin/raspi-config ] ; then
+    echo "/boot directory not found.  This script requires Raspbian to run as a source for updated firmware.  Are you on an up to date Raspbian installation?"
 fi
 
 # Safety check, run as sudo
