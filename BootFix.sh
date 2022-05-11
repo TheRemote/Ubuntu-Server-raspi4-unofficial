@@ -9,11 +9,11 @@
 # Mount writable partition with sudo mount /dev/sda2 /mnt/writable
 # Now you are ready to run this script to update the partition for Raspberry Pi booting
 
-# Safety check, check for /boot directory and /usr/bin/raspinfo
-if ! command -v git >/dev/null ; then
-    echo "Safety check:  git was not found.  Please install using sudo apt install git.  Exiting..."
-    exit 1
-fi
+# Safety check, check for /boot directory and /usr/bin/raspinfo - NO LONGER USED - See Issue #140
+# if ! command -v git >/dev/null ; then
+#    echo "Safety check:  git was not found.  Please install using sudo apt install git.  Exiting..."
+#    exit 1
+# fi
 
 # Safety check, run as sudo
 if [ $(id -u) != 0 ]; then
